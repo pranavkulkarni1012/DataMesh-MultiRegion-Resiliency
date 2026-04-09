@@ -1,0 +1,2515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Mesh Platform — Multi-Region Resiliency Proposal</title>
+<style>
+/* ============================================================
+   CSS RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Brand palette */
+  --primary:       #0f172a;
+  --primary-light: #1e293b;
+  --accent:        #3b82f6;
+  --accent-dark:   #2563eb;
+  --accent-glow:   rgba(59,130,246,.18);
+  --success:       #22c55e;
+  --warning:       #f59e0b;
+  --danger:        #ef4444;
+  --text:          #f8fafc;
+  --text-muted:    #94a3b8;
+  --surface:       #1e293b;
+  --surface2:      #334155;
+  --border:        #475569;
+  --gradient-hero: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+  --gradient-card: linear-gradient(145deg, #1e293b, #0f172a);
+  /* Spacing scale */
+  --sp-1: .25rem; --sp-2: .5rem; --sp-3: .75rem; --sp-4: 1rem;
+  --sp-6: 1.5rem; --sp-8: 2rem; --sp-10: 2.5rem; --sp-12: 3rem;
+  --sp-16: 4rem;  --sp-20: 5rem;
+  /* Type */
+  --ff: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --ff-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --radius: 12px;
+  --shadow: 0 4px 24px rgba(0,0,0,.35);
+}
+
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: var(--ff);
+  background: var(--primary);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   SLIDE FRAMEWORK
+   ============================================================ */
+.slide {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--sp-16) var(--sp-8);
+  position: relative;
+  overflow: hidden;
+}
+.slide-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Slide entrance animation */
+.slide-inner > * {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity .6s ease, transform .6s ease;
+}
+.slide-inner.visible > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+.slide-inner > *:nth-child(2) { transition-delay: .1s; }
+.slide-inner > *:nth-child(3) { transition-delay: .2s; }
+.slide-inner > *:nth-child(4) { transition-delay: .3s; }
+.slide-inner > *:nth-child(5) { transition-delay: .35s; }
+.slide-inner > *:nth-child(6) { transition-delay: .4s; }
+.slide-inner > *:nth-child(7) { transition-delay: .45s; }
+.slide-inner > *:nth-child(8) { transition-delay: .5s; }
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: rgba(15,23,42,.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: var(--sp-3) var(--sp-6);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  transition: transform .3s;
+}
+nav.hidden { transform: translateY(-100%); }
+nav .brand {
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--accent);
+  white-space: nowrap;
+  letter-spacing: -.02em;
+}
+nav .nav-links {
+  display: flex;
+  gap: var(--sp-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+nav .nav-links::-webkit-scrollbar { display: none; }
+nav .nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: .75rem;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: all .2s;
+}
+nav .nav-links a:hover,
+nav .nav-links a.active {
+  color: var(--text);
+  background: var(--surface2);
+}
+.slide-counter {
+  font-size: .75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+#progress {
+  position: fixed; top: 0; left: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent), #a855f7);
+  z-index: 1001;
+  transition: width .25s ease-out;
+  width: 0;
+}
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+h1 {
+  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  line-height: 1.1;
+  margin-bottom: var(--sp-6);
+}
+h2 {
+  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -.02em;
+  margin-bottom: var(--sp-6);
+  line-height: 1.2;
+}
+h3 {
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 600;
+  margin-bottom: var(--sp-4);
+  color: var(--accent);
+}
+.subtitle {
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-8);
+  max-width: 680px;
+}
+.label {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: 999px;
+  margin-bottom: var(--sp-4);
+}
+
+/* ============================================================
+   CARDS & CONTAINERS
+   ============================================================ */
+.card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-6);
+  box-shadow: var(--shadow);
+}
+.card-grid {
+  display: grid;
+  gap: var(--sp-6);
+}
+.card-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.card-grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.card-grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+.icon-card {
+  text-align: center;
+  padding: var(--sp-8) var(--sp-6);
+}
+.icon-card .ic {
+  font-size: 2.5rem;
+  margin-bottom: var(--sp-4);
+  display: block;
+}
+.icon-card h3 { color: var(--text); margin-bottom: var(--sp-2); }
+.icon-card p { color: var(--text-muted); font-size: .9rem; }
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin: var(--sp-6) 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+thead {
+  background: var(--surface2);
+  position: sticky; top: 0;
+}
+th {
+  padding: var(--sp-3) var(--sp-4);
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  border-bottom: 2px solid var(--accent);
+}
+td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid rgba(71,85,105,.4);
+  color: var(--text-muted);
+  vertical-align: top;
+}
+tbody tr:hover { background: rgba(59,130,246,.06); }
+td strong { color: var(--text); }
+
+/* ============================================================
+   BADGES
+   ============================================================ */
+.badge {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.badge-critical { background: rgba(239,68,68,.15); color: #f87171; }
+.badge-high     { background: rgba(245,158,11,.15); color: #fbbf24; }
+.badge-medium   { background: rgba(59,130,246,.15); color: #60a5fa; }
+.badge-low      { background: rgba(34,197,94,.15);  color: #4ade80; }
+.badge-p0       { background: rgba(239,68,68,.15);  color: #f87171; }
+.badge-p1       { background: rgba(245,158,11,.15); color: #fbbf24; }
+.badge-p2       { background: rgba(59,130,246,.15); color: #60a5fa; }
+.badge-open     { background: rgba(239,68,68,.15);  color: #f87171; }
+.badge-ok       { background: rgba(34,197,94,.15);  color: #4ade80; }
+.badge-warn     { background: rgba(245,158,11,.15); color: #fbbf24; }
+
+/* ============================================================
+   STATUS INDICATORS
+   ============================================================ */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .85rem;
+}
+.status .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status .dot.green  { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.status .dot.yellow { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+.status .dot.red    { background: var(--danger);  box-shadow: 0 0 6px var(--danger); }
+
+/* ============================================================
+   ARCHITECTURE DIAGRAM (SVG)
+   ============================================================ */
+.diagram-container {
+  background: rgba(15,23,42,.6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-6);
+  overflow-x: auto;
+  margin: var(--sp-6) 0;
+}
+.diagram-container svg { display: block; margin: 0 auto; }
+
+/* ============================================================
+   TIMELINE
+   ============================================================ */
+.timeline {
+  position: relative;
+  padding-left: 40px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 15px; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--accent), #a855f7, var(--success));
+  border-radius: 3px;
+}
+.tl-item {
+  position: relative;
+  margin-bottom: var(--sp-8);
+}
+.tl-item::before {
+  content: '';
+  position: absolute;
+  left: -33px; top: 6px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--primary);
+  box-shadow: 0 0 0 3px var(--accent);
+}
+.tl-item:nth-child(2)::before { background: #8b5cf6; box-shadow: 0 0 0 3px #8b5cf6; }
+.tl-item:nth-child(3)::before { background: #a855f7; box-shadow: 0 0 0 3px #a855f7; }
+.tl-item:nth-child(4)::before { background: var(--success); box-shadow: 0 0 0 3px var(--success); }
+.tl-phase {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--accent);
+  margin-bottom: var(--sp-1);
+}
+.tl-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: var(--sp-2);
+}
+.tl-body {
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+.tl-body ul {
+  list-style: none;
+  padding: 0;
+  margin-top: var(--sp-2);
+}
+.tl-body li {
+  padding: var(--sp-1) 0;
+  padding-left: 1.2em;
+  position: relative;
+}
+.tl-body li::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ============================================================
+   METRIC BOXES
+   ============================================================ */
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+  margin: var(--sp-6) 0;
+}
+.metric-box {
+  background: var(--gradient-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-6);
+  text-align: center;
+}
+.metric-box .metric-value {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  color: var(--accent);
+}
+.metric-box .metric-value.green { color: var(--success); }
+.metric-box .metric-value.yellow { color: var(--warning); }
+.metric-box .metric-value.red { color: var(--danger); }
+.metric-box .metric-label {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin-top: var(--sp-2);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-weight: 600;
+}
+
+/* ============================================================
+   CALLOUTS
+   ============================================================ */
+.callout {
+  border-left: 4px solid var(--accent);
+  background: rgba(59,130,246,.08);
+  padding: var(--sp-4) var(--sp-6);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: var(--sp-4) 0;
+  font-size: .9rem;
+}
+.callout.danger {
+  border-color: var(--danger);
+  background: rgba(239,68,68,.08);
+}
+.callout.warning {
+  border-color: var(--warning);
+  background: rgba(245,158,11,.08);
+}
+.callout.success {
+  border-color: var(--success);
+  background: rgba(34,197,94,.08);
+}
+.callout strong { color: var(--text); }
+
+/* ============================================================
+   SCENARIO CARDS
+   ============================================================ */
+.scenario-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.scenario-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+.scenario-icon.blue   { background: rgba(59,130,246,.15); }
+.scenario-icon.orange { background: rgba(245,158,11,.15); }
+.scenario-icon.red    { background: rgba(239,68,68,.15); }
+.scenario-icon.green  { background: rgba(34,197,94,.15); }
+.scenario-icon.purple { background: rgba(168,85,247,.15); }
+
+/* ============================================================
+   HERO DECORATIONS
+   ============================================================ */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+}
+.hero-bg .grid-lines {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.hero-bg .glow {
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: .15;
+}
+.hero-bg .glow-1 { background: #3b82f6; top: -200px; right: -100px; }
+.hero-bg .glow-2 { background: #8b5cf6; bottom: -200px; left: -100px; }
+
+/* ============================================================
+   FLOW DIAGRAM CSS
+   ============================================================ */
+.flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0;
+}
+.flow-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--sp-2) var(--sp-4);
+  font-size: .82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.flow-arrow {
+  color: var(--accent);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .slide { padding: var(--sp-16) var(--sp-4); }
+  nav .nav-links { display: none; }
+  .card-grid.cols-2, .card-grid.cols-3, .card-grid.cols-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   PRINT
+   ============================================================ */
+@media print {
+  .slide { min-height: auto; page-break-inside: avoid; padding: 1rem; }
+  nav, #progress { display: none; }
+  body { background: #fff; color: #000; }
+  .card { border-color: #ccc; box-shadow: none; background: #f9f9f9; }
+  th { border-bottom-color: #333; }
+  .badge, .label { border: 1px solid #999; }
+}
+
+/* ============================================================
+   HAMBURGER / SLIDE NAV DRAWER (MOBILE)
+   ============================================================ */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: var(--sp-2);
+}
+@media (max-width: 768px) {
+  .hamburger { display: block; }
+}
+
+/* Misc utilities */
+.mt-4 { margin-top: var(--sp-4); }
+.mt-6 { margin-top: var(--sp-6); }
+.mt-8 { margin-top: var(--sp-8); }
+.mb-4 { margin-bottom: var(--sp-4); }
+.mb-6 { margin-bottom: var(--sp-6); }
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted); }
+.flex-row { display: flex; gap: var(--sp-4); flex-wrap: wrap; align-items: center; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+/* Animated pulse for live indicators */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+.pulse { animation: pulse 2s ease-in-out infinite; }
+
+/* Section divider */
+.divider {
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent), #a855f7);
+  border-radius: 4px;
+  margin: var(--sp-6) 0;
+}
+
+/* Scenario mini-table */
+.mini-table { margin-top: var(--sp-4); }
+.mini-table td:first-child { font-weight: 600; color: var(--text); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div id="progress"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+  <span class="brand">Data Mesh Resiliency</span>
+  <div class="nav-links">
+    <a href="#slide-hero">Home</a>
+    <a href="#slide-risk">Why Now</a>
+    <a href="#slide-current">Current State</a>
+    <a href="#slide-challenges">Challenges</a>
+    <a href="#slide-strategy">Strategy</a>
+    <a href="#slide-components">Components</a>
+    <a href="#slide-iceberg">Iceberg</a>
+    <a href="#slide-network">Network</a>
+    <a href="#slide-compute">Compute</a>
+    <a href="#slide-governance">Governance</a>
+    <a href="#slide-notifications">Notifications</a>
+    <a href="#slide-scenarios">Scenarios</a>
+    <a href="#slide-consumer">Consumer Impact</a>
+    <a href="#slide-target">Target Arch</a>
+    <a href="#slide-timeline">Timeline</a>
+    <a href="#slide-actions">Actions</a>
+    <a href="#slide-blockers">Blockers</a>
+    <a href="#slide-rpo">RPO/RTO</a>
+    <a href="#slide-decisions">Decisions</a>
+    <a href="#slide-next">Next Steps</a>
+  </div>
+  <span class="slide-counter" id="slideCounter">1 / 20</span>
+</nav>
+
+<!-- ============================================================
+     SLIDE 1 — HERO
+     ============================================================ -->
+<section class="slide" id="slide-hero">
+  <div class="hero-bg">
+    <div class="grid-lines"></div>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+  </div>
+  <div class="slide-inner">
+    <span class="label">Architecture Proposal &middot; v1.0</span>
+    <h1>Data Mesh Platform<br><span style="color:var(--accent)">Multi-Region Resiliency</span></h1>
+    <p class="subtitle">
+      Designing active-passive disaster recovery from <strong>us-east-1</strong> to <strong>us-west-2</strong>
+      to protect the enterprise Data Mesh platform against a complete regional outage.
+    </p>
+    <div class="metric-row" style="max-width:700px">
+      <div class="metric-box">
+        <div class="metric-value yellow">15 min</div>
+        <div class="metric-label">Target RPO</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">30-60 min</div>
+        <div class="metric-label">Target RTO</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value green">~25%</div>
+        <div class="metric-label">Warm Standby Cost</div>
+      </div>
+    </div>
+    <p style="color:var(--text-muted);font-size:.85rem;margin-top:var(--sp-8)">
+      April 2026 &nbsp;|&nbsp; For Senior Architecture &amp; Management Review
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 2 — WHY NOW
+     ============================================================ -->
+<section class="slide" id="slide-risk" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">The Risk</span>
+    <h2>Why Multi-Region Resiliency Now?</h2>
+    <div class="callout danger">
+      <strong>Today, a single us-east-1 outage takes down the entire Data Mesh platform</strong> &mdash;
+      registration APIs, all three compute platforms, governance enforcement, and every consumer query.
+    </div>
+    <div class="card-grid cols-3 mt-6">
+      <div class="card icon-card">
+        <span class="ic">&#9888;&#65039;</span>
+        <h3>Precedent</h3>
+        <p>us-east-1 experienced major outages in 2017, 2020, 2021, and 2023. This is not theoretical.</p>
+      </div>
+      <div class="card icon-card">
+        <span class="ic">&#128200;</span>
+        <h3>Business Impact</h3>
+        <p>All consumer analytics, regulatory reporting, and real-time dashboards become unavailable during an outage.</p>
+      </div>
+      <div class="card icon-card">
+        <span class="ic">&#128274;</span>
+        <h3>Compliance</h3>
+        <p>Regulatory requirements increasingly mandate multi-region resilience for critical data infrastructure.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 3 — CURRENT STATE
+     ============================================================ -->
+<section class="slide" id="slide-current">
+  <div class="slide-inner">
+    <span class="label">Current State</span>
+    <h2>Architecture Today <span style="color:var(--text-muted);font-weight:400;font-size:.6em">(us-east-1 only)</span></h2>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1000 520" width="100%" style="max-width:1000px" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background -->
+        <rect x="10" y="10" width="980" height="500" rx="16" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+        <text x="500" y="40" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="600">us-east-1 (Single Region)</text>
+
+        <!-- Producers -->
+        <rect x="60" y="65" width="140" height="70" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+        <text x="130" y="92" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="600">Producer A</text>
+        <text x="130" y="110" text-anchor="middle" fill="#94a3b8" font-size="10">S3 (Parquet)</text>
+        <text x="130" y="125" text-anchor="middle" fill="#60a5fa" font-size="9">Own AWS Account</text>
+
+        <rect x="250" y="65" width="140" height="70" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+        <text x="320" y="92" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="600">Producer B</text>
+        <text x="320" y="110" text-anchor="middle" fill="#94a3b8" font-size="10">S3 (Iceberg)</text>
+        <text x="320" y="125" text-anchor="middle" fill="#60a5fa" font-size="9">Own AWS Account</text>
+
+        <rect x="440" y="65" width="140" height="70" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+        <text x="510" y="92" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="600">Producer C</text>
+        <text x="510" y="110" text-anchor="middle" fill="#94a3b8" font-size="10">S3 (Parquet)</text>
+        <text x="510" y="125" text-anchor="middle" fill="#60a5fa" font-size="9">Own AWS Account</text>
+
+        <text x="620" y="100" fill="#94a3b8" font-size="20">...</text>
+
+        <!-- Arrows down from producers -->
+        <line x1="130" y1="135" x2="130" y2="175" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+        <line x1="320" y1="135" x2="320" y2="175" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+        <line x1="510" y1="135" x2="430" y2="175" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+        <!-- Platform APIs -->
+        <rect x="80" y="175" width="520" height="80" rx="10" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+        <text x="340" y="198" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">DATA MESH PLATFORM (Platform Account)</text>
+        <text x="170" y="220" text-anchor="middle" fill="#94a3b8" font-size="10">Route53 > ALB > ECS</text>
+        <text x="340" y="220" text-anchor="middle" fill="#94a3b8" font-size="10">Lambda (Notifications)</text>
+        <text x="490" y="220" text-anchor="middle" fill="#94a3b8" font-size="10">DynamoDB</text>
+        <text x="340" y="240" text-anchor="middle" fill="#64748b" font-size="9">Registration APIs &amp; Notification APIs</text>
+
+        <!-- Arrows to compute -->
+        <line x1="200" y1="255" x2="150" y2="310" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+        <line x1="340" y1="255" x2="420" y2="310" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+        <line x1="480" y1="255" x2="680" y2="310" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+
+        <!-- Compute Platforms -->
+        <rect x="60" y="310" width="180" height="65" rx="10" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+        <text x="150" y="335" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="600">Snowflake</text>
+        <text x="150" y="352" text-anchor="middle" fill="#94a3b8" font-size="9">External Tables, Unmanaged Iceberg</text>
+        <text x="150" y="365" text-anchor="middle" fill="#94a3b8" font-size="9">Storage Integrations</text>
+
+        <rect x="330" y="310" width="180" height="65" rx="10" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+        <text x="420" y="335" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="600">Starburst</text>
+        <text x="420" y="352" text-anchor="middle" fill="#94a3b8" font-size="9">Glue Catalog</text>
+        <text x="420" y="365" text-anchor="middle" fill="#94a3b8" font-size="9">S3 Access Point Aliases</text>
+
+        <rect x="600" y="310" width="180" height="65" rx="10" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+        <text x="690" y="335" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="600">Databricks</text>
+        <text x="690" y="352" text-anchor="middle" fill="#94a3b8" font-size="9">External Tables</text>
+        <text x="690" y="365" text-anchor="middle" fill="#94a3b8" font-size="9">Unity Catalog</text>
+
+        <!-- VPC Endpoint -->
+        <rect x="200" y="400" width="400" height="30" rx="6" fill="rgba(59,130,246,.1)" stroke="#3b82f6" stroke-dasharray="4 3"/>
+        <text x="400" y="420" text-anchor="middle" fill="#60a5fa" font-size="10">S3 Gateway VPC Endpoint (us-east-1)</text>
+
+        <!-- Arrows from compute to VPC EP -->
+        <line x1="150" y1="375" x2="300" y2="400" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="420" y1="375" x2="400" y2="400" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="690" y1="375" x2="500" y2="400" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4 3"/>
+
+        <!-- S3 -->
+        <rect x="280" y="450" width="240" height="40" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="400" y="475" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600">Producer S3 Buckets (us-east-1)</text>
+        <line x1="400" y1="430" x2="400" y2="450" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrowYellow)"/>
+
+        <!-- Immuta -->
+        <rect x="700" y="175" width="250" height="80" rx="10" fill="#1e293b" stroke="#f43f5e" stroke-width="1.5"/>
+        <text x="825" y="198" text-anchor="middle" fill="#fb7185" font-size="11" font-weight="600">IMMUTA (Governance Account)</text>
+        <text x="825" y="218" text-anchor="middle" fill="#94a3b8" font-size="9">Starburst: Runtime API</text>
+        <text x="825" y="233" text-anchor="middle" fill="#94a3b8" font-size="9">Snowflake/DBX: Policy Sync</text>
+
+        <!-- Immuta arrows -->
+        <line x1="700" y1="230" x2="510" y2="320" stroke="#f43f5e" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="700" y1="210" x2="240" y2="320" stroke="#f43f5e" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="825" y1="255" x2="750" y2="310" stroke="#f43f5e" stroke-width="1" stroke-dasharray="4 3"/>
+
+        <!-- Consumer Notifications -->
+        <rect x="280" y="375" width="380" height="40" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="1.5"/>
+        <text x="470" y="393" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600">Consumer Notification Layer</text>
+        <text x="470" y="407" text-anchor="middle" fill="#94a3b8" font-size="8">SNS&rarr;SQS  |  On-Prem Kafka  |  Notification API</text>
+        <line x1="340" y1="255" x2="400" y2="375" stroke="#a855f7" stroke-width="1" stroke-dasharray="3 2"/>
+
+        <!-- Consumers -->
+        <rect x="700" y="400" width="240" height="45" rx="10" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+        <text x="820" y="420" text-anchor="middle" fill="#f8fafc" font-size="11" font-weight="600">Consumers</text>
+        <text x="820" y="435" text-anchor="middle" fill="#94a3b8" font-size="9">Query via SF/SB/DBX | Notified via SNS/Kafka/API</text>
+        <line x1="750" y1="375" x2="780" y2="400" stroke="#94a3b8" stroke-width="1"/>
+        <line x1="420" y1="375" x2="750" y2="400" stroke="#94a3b8" stroke-width="1" opacity=".3"/>
+        <line x1="660" y1="395" x2="700" y2="410" stroke="#a855f7" stroke-width="1" stroke-dasharray="3 2"/>
+
+        <!-- Arrow markers -->
+        <defs>
+          <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#3b82f6"/>
+          </marker>
+          <marker id="arrowPurple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#8b5cf6"/>
+          </marker>
+          <marker id="arrowYellow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <div class="callout danger mt-4">
+      <strong>Single point of failure:</strong> Every component runs exclusively in us-east-1. A regional outage = total platform downtime.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 4 — KEY CHALLENGES
+     ============================================================ -->
+<section class="slide" id="slide-challenges" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">Discovery</span>
+    <h2>10 Critical Challenges Identified</h2>
+    <p class="subtitle">Deep analysis revealed these technical and organizational blockers that must be addressed.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Challenge</th><th>Severity</th><th>Why It Matters</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><strong>Iceberg metadata contains absolute S3 paths</strong></td>
+            <td><span class="badge badge-critical">CRITICAL</span></td>
+            <td>CRR alone doesn't make Iceberg tables queryable in another region</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><strong>Snowflake skips external/unmanaged Iceberg tables during replication</strong></td>
+            <td><span class="badge badge-critical">CRITICAL</span></td>
+            <td>The core Data Mesh external table layer cannot be natively replicated</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><strong>S3 Gateway VPC Endpoints are same-region only</strong></td>
+            <td><span class="badge badge-critical">CRITICAL</span></td>
+            <td>us-west-2 compute cannot reach us-east-1 S3 via gateway endpoints</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><strong>Glue Catalog is regional</strong></td>
+            <td><span class="badge badge-high">HIGH</span></td>
+            <td>Table definitions and partitions don't replicate automatically</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><strong>Immuta has no native multi-instance policy sync</strong></td>
+            <td><span class="badge badge-high">HIGH</span></td>
+            <td>DR requires PostgreSQL PITR or Policy-as-Code automation</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td><strong>S3 CRR has no ordering guarantee</strong></td>
+            <td><span class="badge badge-high">HIGH</span></td>
+            <td>Iceberg metadata may replicate before data files &rarr; read failures</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td><strong>Each producer is a separate AWS account</strong></td>
+            <td><span class="badge badge-medium">MEDIUM</span></td>
+            <td>Multi-region must be coordinated across dozens of independent teams</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td><strong>DynamoDB Global Tables use last-writer-wins</strong></td>
+            <td><span class="badge badge-medium">MEDIUM</span></td>
+            <td>Silent data loss possible during dual-region writes</td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td><strong>SNS topics are regional</strong> &mdash; consumer SQS in us-east-1 unreachable during outage</td>
+            <td><span class="badge badge-high">HIGH</span></td>
+            <td>Consumers need SQS in us-west-2 + dual-publish from platform</td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td><strong>On-prem Kafka connectivity</strong> &mdash; us-west-2 needs DX/VPN to reach on-prem Kafka</td>
+            <td><span class="badge badge-high">HIGH</span></td>
+            <td>If DX only in us-east-1, Kafka channel unavailable during outage</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 5 — RECOMMENDED STRATEGY
+     ============================================================ -->
+<section class="slide" id="slide-strategy">
+  <div class="slide-inner">
+    <span class="label">Recommendation</span>
+    <h2>Active-Passive Warm Standby</h2>
+    <p class="subtitle">The right balance of resilience, cost, and operational simplicity.</p>
+
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3>What It Means</h3>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.9rem">
+          <li style="padding:.3rem 0">&#9654; Secondary region (us-west-2) pre-provisioned</li>
+          <li style="padding:.3rem 0">&#9654; Data replication runs continuously</li>
+          <li style="padding:.3rem 0">&#9654; Infra kept warm at minimum capacity</li>
+          <li style="padding:.3rem 0">&#9654; Manual failover after confirmed outage</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Why Not Active-Active?</h3>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.9rem">
+          <li style="padding:.3rem 0">&#10060; 2x infrastructure cost</li>
+          <li style="padding:.3rem 0">&#10060; Dual-write consistency complexity</li>
+          <li style="padding:.3rem 0">&#10060; Split-brain risks</li>
+          <li style="padding:.3rem 0">&#10060; Not needed for DR use case</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Why Not Pilot Light?</h3>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.9rem">
+          <li style="padding:.3rem 0">&#10060; Cold-start latency too high</li>
+          <li style="padding:.3rem 0">&#10060; Snowflake table recreation is slow</li>
+          <li style="padding:.3rem 0">&#10060; Cannot meet 60-min RTO target</li>
+          <li style="padding:.3rem 0">&#10060; Starburst cluster boot is 10-15 min</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="metric-row mt-8">
+      <div class="metric-box">
+        <div class="metric-value yellow">&#8804; 15 min</div>
+        <div class="metric-label">RPO (Data Loss)</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">&#8804; 60 min</div>
+        <div class="metric-label">RTO (Downtime)</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value green">Manual</div>
+        <div class="metric-label">Failover Trigger</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value green">~25-35%</div>
+        <div class="metric-label">of Primary Cost</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 6 — COMPONENT OVERVIEW
+     ============================================================ -->
+<section class="slide" id="slide-components" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">Component Strategy</span>
+    <h2>Multi-Region Approach by Component</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Replication Method</th><th>RPO</th><th>Key Challenge</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Producer S3 (Parquet)</strong></td>
+            <td>S3 CRR + Replication Time Control</td>
+            <td>~15 min</td>
+            <td>Producer adoption dependency</td>
+          </tr>
+          <tr>
+            <td><strong>Producer S3 (Iceberg)</strong></td>
+            <td>S3 CRR + metadata re-registration / MRAP</td>
+            <td>~15 min</td>
+            <td><span class="badge badge-critical">Absolute paths</span></td>
+          </tr>
+          <tr>
+            <td><strong>DynamoDB</strong></td>
+            <td>Global Tables (MREC)</td>
+            <td>~2 sec</td>
+            <td>LWW conflict resolution</td>
+          </tr>
+          <tr>
+            <td><strong>Glue Catalog</strong></td>
+            <td>Dual-write from Notification API</td>
+            <td>~0</td>
+            <td>Permissions don't replicate</td>
+          </tr>
+          <tr>
+            <td><strong>Platform APIs</strong></td>
+            <td>Route53 failover + ECS warm standby</td>
+            <td>~2 sec</td>
+            <td>DNS TTL propagation</td>
+          </tr>
+          <tr>
+            <td><strong>Snowflake</strong></td>
+            <td>Failover Groups (internal) + Automation (external tables)</td>
+            <td>Varies</td>
+            <td><span class="badge badge-critical">Cannot replicate ext tables</span></td>
+          </tr>
+          <tr>
+            <td><strong>Starburst</strong></td>
+            <td>Separate cluster in us-west-2 + Gateway routing</td>
+            <td>~0</td>
+            <td>No native failover</td>
+          </tr>
+          <tr>
+            <td><strong>Databricks</strong></td>
+            <td>Workspace replication + external table automation</td>
+            <td>Varies</td>
+            <td>External table recreation</td>
+          </tr>
+          <tr>
+            <td><strong>Immuta</strong></td>
+            <td>Policy-as-Code via Git + PostgreSQL PITR</td>
+            <td>Last CI/CD run</td>
+            <td>Runtime dependency from Starburst</td>
+          </tr>
+          <tr>
+            <td><strong>Notifications: SNS-SQS</strong></td>
+            <td>Dual-publish to both regional SNS topics</td>
+            <td>~0 (dual-pub)</td>
+            <td><span class="badge badge-high">Consumer SQS in us-west-2 needed</span></td>
+          </tr>
+          <tr>
+            <td><strong>Notifications: On-Prem Kafka</strong></td>
+            <td>Direct Connect / VPN from us-west-2 to on-prem</td>
+            <td>~2 sec</td>
+            <td><span class="badge badge-critical">DX/VPN blocker</span></td>
+          </tr>
+          <tr>
+            <td><strong>Notifications: Polling API</strong></td>
+            <td>Covered by Platform API failover (Route53 + DynamoDB)</td>
+            <td>~2 sec</td>
+            <td>Simplest channel &mdash; consumer uses CNAME</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 7 — ICEBERG DEEP DIVE
+     ============================================================ -->
+<section class="slide" id="slide-iceberg">
+  <div class="slide-inner">
+    <span class="label">Critical Challenge</span>
+    <h2>Iceberg Tables &mdash; The Hard Problem</h2>
+
+    <div class="two-col">
+      <div>
+        <h3 style="color:var(--danger)">The Problem</h3>
+        <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:var(--sp-4)">
+          Iceberg metadata files contain <strong style="color:var(--text)">absolute S3 paths</strong>.
+          After CRR to us-west-2, metadata still points to us-east-1 bucket. If east is down, tables are <strong style="color:var(--danger)">unreadable</strong>.
+        </p>
+        <div class="card" style="font-family:var(--ff-mono);font-size:.75rem;padding:var(--sp-4);color:var(--text-muted)">
+          <div style="color:var(--text);margin-bottom:.5rem">metadata.json (replicated to west):</div>
+          <div>"location": "<span style="color:#f87171">s3://bucket-<strong>us-east-1</strong></span>/table"</div>
+          <div>"manifest-list": "<span style="color:#f87171">s3://bucket-<strong>us-east-1</strong></span>/snap.avro"</div>
+          <div style="margin-top:.5rem;color:#f87171">// ^^^ Still points to EAST! Unresolvable if east is down</div>
+        </div>
+        <div class="callout danger mt-4">
+          <strong>Also:</strong> S3 CRR has no ordering guarantee. Metadata may replicate before data files, causing <code>FileNotFoundException</code> on read.
+        </div>
+      </div>
+      <div>
+        <h3 style="color:var(--success)">Solutions (Ranked)</h3>
+        <div class="card mb-4" style="border-color:var(--success)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+            <strong>Option 1: MRAP (New Tables)</strong>
+            <span class="badge badge-ok">RECOMMENDED</span>
+          </div>
+          <p style="color:var(--text-muted);font-size:.85rem">
+            Write using Multi-Region Access Point URLs. Metadata contains region-agnostic paths. MRAP auto-routes to surviving region.
+          </p>
+        </div>
+        <div class="card mb-4" style="border-color:var(--warning)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+            <strong>Option 2: register_table (Existing)</strong>
+            <span class="badge badge-warn">FOR EXISTING</span>
+          </div>
+          <p style="color:var(--text-muted);font-size:.85rem">
+            During failover, re-register tables in us-west-2 Glue Catalog with path substitution automation.
+          </p>
+        </div>
+        <div class="card mb-4" style="border-color:var(--accent)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+            <strong>Option 3: S3 Tables (Future)</strong>
+            <span class="badge badge-medium">LONG TERM</span>
+          </div>
+          <p style="color:var(--text-muted);font-size:.85rem">
+            AWS managed Iceberg service with automatic metadata path rewriting and snapshot ordering.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 8 — NETWORK (VPC ENDPOINTS)
+     ============================================================ -->
+<section class="slide" id="slide-network" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">Networking</span>
+    <h2>S3 VPC Endpoints &amp; Network Paths</h2>
+
+    <div class="callout danger mb-6">
+      <strong>S3 Gateway VPC Endpoints are strictly same-region.</strong>
+      A gateway endpoint in us-west-2 cannot access an S3 bucket in us-east-1. S3 Access Points are also regional.
+    </div>
+
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3>What Must Change per Region</h3>
+        <div class="table-wrap" style="margin:var(--sp-3) 0">
+          <table>
+            <thead><tr><th>Component</th><th>us-west-2 Action</th></tr></thead>
+            <tbody>
+              <tr><td><strong>VPC</strong></td><td>Create new VPC in us-west-2</td></tr>
+              <tr><td><strong>S3 Gateway EP</strong></td><td>Create in us-west-2 VPC</td></tr>
+              <tr><td><strong>Access Points</strong></td><td>Create on us-west-2 replicated buckets</td></tr>
+              <tr><td><strong>Subnets / SGs</strong></td><td>Mirror us-east-1 configuration</td></tr>
+              <tr><td><strong>Route Tables</strong></td><td>Add S3 gateway endpoint route</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Cross-Region Access (Partial Failover)</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:var(--sp-3)">
+          When some producers stay in east and compute runs in west:
+        </p>
+        <div class="callout warning" style="font-size:.85rem">
+          <strong>Recommendation:</strong> Do NOT engineer cross-region access paths.
+          If a producer hasn't set up CRR to us-west-2, accept their data as unavailable during outage. The cost/complexity of cross-region VPC access outweighs the benefit.
+        </div>
+        <p style="color:var(--text-muted);font-size:.82rem;margin-top:var(--sp-3)">
+          <strong style="color:var(--text)">Starburst:</strong> New Access Point Aliases on us-west-2 buckets<br>
+          <strong style="color:var(--text)">Snowflake:</strong> New Storage Integration + External Volume for west<br>
+          <strong style="color:var(--text)">Databricks:</strong> New External Locations pointing to west buckets
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 9 — COMPUTE PLATFORMS
+     ============================================================ -->
+<section class="slide" id="slide-compute">
+  <div class="slide-inner">
+    <span class="label">Compute Layer</span>
+    <h2>Compute Platform DR Strategy</h2>
+
+    <div class="card-grid cols-3">
+      <!-- Snowflake -->
+      <div class="card">
+        <div class="scenario-header">
+          <div class="scenario-icon blue" style="font-size:1.2rem;font-weight:700">SF</div>
+          <div>
+            <h3 style="margin-bottom:0">Snowflake</h3>
+          </div>
+        </div>
+        <div class="callout danger" style="font-size:.82rem">
+          External & unmanaged Iceberg tables are <strong>silently skipped</strong> during replication (BCR-1528)
+        </div>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.85rem;margin-top:var(--sp-3)">
+          <li>&#9654; Provision us-west-2 Snowflake account (Biz Critical)</li>
+          <li>&#9654; Replicate internal objects via Failover Groups</li>
+          <li>&#9654; <strong style="color:var(--text)">Build automation</strong> to recreate external tables</li>
+          <li>&#9654; Create new Storage Integrations + External Volumes</li>
+          <li>&#9654; Run recreation nightly to keep warm</li>
+          <li>&#9654; Client Redirect or DNS CNAME for consumers</li>
+        </ul>
+      </div>
+
+      <!-- Starburst -->
+      <div class="card">
+        <div class="scenario-header">
+          <div class="scenario-icon purple" style="font-size:1.2rem;font-weight:700">SB</div>
+          <div>
+            <h3 style="margin-bottom:0">Starburst</h3>
+          </div>
+        </div>
+        <div class="callout warning" style="font-size:.82rem">
+          No native multi-region. Runtime dependency on Immuta for <strong>every query</strong>.
+        </div>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.85rem;margin-top:var(--sp-3)">
+          <li>&#9654; Deploy separate cluster in us-west-2</li>
+          <li>&#9654; Configure with us-west-2 Glue Catalog</li>
+          <li>&#9654; S3 Access Points for west buckets</li>
+          <li>&#9654; Connect to us-west-2 Immuta</li>
+          <li>&#9654; Starburst Gateway / DNS routing</li>
+          <li>&#9654; Run as warm standby (min workers)</li>
+        </ul>
+      </div>
+
+      <!-- Databricks -->
+      <div class="card">
+        <div class="scenario-header">
+          <div class="scenario-icon orange" style="font-size:1.2rem;font-weight:700">DB</div>
+          <div>
+            <h3 style="margin-bottom:0">Databricks</h3>
+          </div>
+        </div>
+        <div class="callout" style="font-size:.82rem">
+          Supports DR patterns including workspace replication via Terraform.
+        </div>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.85rem;margin-top:var(--sp-3)">
+          <li>&#9654; Provision workspace in us-west-2</li>
+          <li>&#9654; Unity Catalog metastore in west</li>
+          <li>&#9654; External locations for west S3 buckets</li>
+          <li>&#9654; Build table recreation automation</li>
+          <li>&#9654; Configure Immuta integration</li>
+          <li>&#9654; DNS CNAME for consumer routing</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Platform APIs -->
+    <h3 class="mt-8">Platform APIs (ECS, Lambda, DynamoDB, Route53)</h3>
+    <div class="flow">
+      <span class="flow-box">Route53 Health Check</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-box">Failover Routing Policy</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-box">us-west-2 ALB</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-box">ECS (Warm Standby)</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-box">DynamoDB Global Tables</span>
+    </div>
+    <div class="flow">
+      <span class="flow-box">Notification Lambda (us-west-2)</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-box" style="border-color:var(--success)">Dual-Write: East Glue + West Glue</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 10 — GOVERNANCE
+     ============================================================ -->
+<section class="slide" id="slide-governance" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">Governance</span>
+    <h2>Immuta Policy Enforcement in DR</h2>
+
+    <div class="two-col">
+      <div>
+        <h3>Current Behavior if Immuta Fails</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Platform</th><th>Impact</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Starburst</strong></td>
+                <td><span class="status"><span class="dot red"></span> Queries FAIL</span></td>
+                <td>Runtime API dependency</td>
+              </tr>
+              <tr>
+                <td><strong>Snowflake</strong></td>
+                <td><span class="status"><span class="dot green"></span> Continues</span></td>
+                <td>Policies already synced natively</td>
+              </tr>
+              <tr>
+                <td><strong>Databricks</strong></td>
+                <td><span class="status"><span class="dot green"></span> Continues</span></td>
+                <td>Policies already synced natively</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout danger mt-4" style="font-size:.85rem">
+          <strong>Key Risk:</strong> Starburst has a hard runtime dependency on Immuta.
+          If Immuta's us-east-1 is down but AWS is fine, Starburst queries fail until Immuta recovers or Starburst fails over to us-west-2.
+        </div>
+      </div>
+      <div>
+        <h3>DR Strategy: Policy-as-Code</h3>
+        <div class="card">
+          <div style="text-align:center;padding:var(--sp-4) 0">
+            <div class="flow" style="justify-content:center">
+              <span class="flow-box">Git Repo (YAML)</span>
+              <span class="flow-arrow">&darr;</span>
+            </div>
+            <div class="flow" style="justify-content:center;margin-top:var(--sp-2)">
+              <span class="flow-box" style="border-color:var(--accent)">CI/CD Pipeline</span>
+            </div>
+            <div style="display:flex;justify-content:center;gap:var(--sp-8);margin-top:var(--sp-3)">
+              <div>
+                <span class="flow-arrow">&darr;</span><br>
+                <span class="flow-box">Immuta East</span>
+              </div>
+              <div>
+                <span class="flow-arrow">&darr;</span><br>
+                <span class="flow-box" style="border-color:var(--success)">Immuta West</span>
+              </div>
+            </div>
+          </div>
+          <ul style="list-style:none;color:var(--text-muted);font-size:.85rem;margin-top:var(--sp-4)">
+            <li>&#9654; Deploy Immuta instance in us-west-2</li>
+            <li>&#9654; All policies defined as code in Git</li>
+            <li>&#9654; CI/CD applies to both instances</li>
+            <li>&#9654; us-west-2 Immuta pre-configured with compute integrations</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 10b — CONSUMER NOTIFICATIONS
+     ============================================================ -->
+<section class="slide" id="slide-notifications">
+  <div class="slide-inner">
+    <span class="label">Consumer Notifications</span>
+    <h2>Notification Channels &mdash; Multi-Region Strategy</h2>
+    <p class="subtitle">Consumers are notified of new data availability through three channels, each with distinct DR implications.</p>
+
+    <div class="card-grid cols-3">
+      <!-- SNS-SQS -->
+      <div class="card" style="border-color:var(--accent)">
+        <div class="scenario-header">
+          <div class="scenario-icon blue" style="font-size:1.1rem;font-weight:700">SNS</div>
+          <div><h3 style="margin-bottom:0">SNS &rarr; SQS</h3></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:.82rem;margin-bottom:var(--sp-3)">
+          Platform publishes to SNS. Consumer's SQS (in consumer's account) is subscribed. Consumer polls SQS.
+        </p>
+        <div class="callout danger" style="font-size:.8rem">
+          <strong>Challenge:</strong> SNS topics are <strong>regional</strong>. Consumer SQS in us-east-1 is unreachable during outage.
+        </div>
+        <h3 class="mt-4" style="font-size:.85rem">DR Strategy: Dual-Publish</h3>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.82rem">
+          <li style="padding:.2rem 0">&#9654; Create SNS topic in <strong style="color:var(--text)">us-west-2</strong></li>
+          <li style="padding:.2rem 0">&#9654; Platform publishes to <strong style="color:var(--text)">both</strong> SNS topics</li>
+          <li style="padding:.2rem 0">&#9654; Consumer creates SQS in <strong style="color:var(--text)">us-west-2</strong></li>
+          <li style="padding:.2rem 0">&#9654; Consumer app polls <strong style="color:var(--text)">both</strong> queues</li>
+          <li style="padding:.2rem 0">&#9654; Implement <strong style="color:var(--text)">idempotent</strong> processing</li>
+        </ul>
+        <div class="metric-row mt-4" style="grid-template-columns:1fr 1fr">
+          <div class="metric-box" style="padding:var(--sp-2)"><div class="metric-value green" style="font-size:1.2rem">~0</div><div class="metric-label" style="font-size:.6rem">RPO</div></div>
+          <div class="metric-box" style="padding:var(--sp-2)"><div class="metric-value green" style="font-size:1.2rem">0 min</div><div class="metric-label" style="font-size:.6rem">RTO</div></div>
+        </div>
+      </div>
+
+      <!-- Kafka -->
+      <div class="card" style="border-color:var(--warning)">
+        <div class="scenario-header">
+          <div class="scenario-icon orange" style="font-size:1rem;font-weight:700">KFK</div>
+          <div><h3 style="margin-bottom:0">On-Prem Kafka</h3></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:.82rem;margin-bottom:var(--sp-3)">
+          Platform Lambda/ECS pushes messages to on-prem Kafka via Direct Connect / VPN. Consumer apps consume from Kafka.
+        </p>
+        <div class="callout danger" style="font-size:.8rem">
+          <strong>BLOCKER:</strong> us-west-2 must have <strong>Direct Connect / VPN</strong> to on-prem. If DX only terminates in us-east-1, Kafka is <strong>unreachable</strong> during outage.
+        </div>
+        <h3 class="mt-4" style="font-size:.85rem">DR Strategy</h3>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.82rem">
+          <li style="padding:.2rem 0">&#9654; Provision <strong style="color:var(--text)">DX/VPN from us-west-2</strong></li>
+          <li style="padding:.2rem 0">&#9654; Configure us-west-2 Lambda with Kafka brokers</li>
+          <li style="padding:.2rem 0">&#9654; Validate firewall rules, ACLs, TLS</li>
+          <li style="padding:.2rem 0">&#9654; No consumer-side changes (Kafka is on-prem)</li>
+        </ul>
+        <div class="metric-row mt-4" style="grid-template-columns:1fr 1fr">
+          <div class="metric-box" style="padding:var(--sp-2)"><div class="metric-value" style="font-size:1.2rem">~2s</div><div class="metric-label" style="font-size:.6rem">RPO</div></div>
+          <div class="metric-box" style="padding:var(--sp-2)"><div class="metric-value yellow" style="font-size:1.2rem">5-10m</div><div class="metric-label" style="font-size:.6rem">RTO</div></div>
+        </div>
+      </div>
+
+      <!-- Notification API -->
+      <div class="card" style="border-color:var(--success)">
+        <div class="scenario-header">
+          <div class="scenario-icon green" style="font-size:1rem;font-weight:700">API</div>
+          <div><h3 style="margin-bottom:0">Notification API</h3></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:.82rem;margin-bottom:var(--sp-3)">
+          Consumer polls REST API for new notifications. API backed by ECS/Lambda + DynamoDB.
+        </p>
+        <div class="callout success" style="font-size:.8rem">
+          <strong>Simplest DR:</strong> Already covered by platform API failover (Route53 + DynamoDB Global Tables).
+        </div>
+        <h3 class="mt-4" style="font-size:.85rem">DR Strategy</h3>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.82rem">
+          <li style="padding:.2rem 0">&#9654; DynamoDB Global Tables replicate data (~2s)</li>
+          <li style="padding:.2rem 0">&#9654; Route53 fails over API endpoint</li>
+          <li style="padding:.2rem 0">&#9654; Consumer uses <strong style="color:var(--text)">CNAME</strong> (not regional URL)</li>
+          <li style="padding:.2rem 0">&#9654; <strong style="color:var(--success)">No consumer code changes</strong></li>
+        </ul>
+        <div class="metric-row mt-4" style="grid-template-columns:1fr 1fr">
+          <div class="metric-box" style="padding:var(--sp-2)"><div class="metric-value green" style="font-size:1.2rem">~2s</div><div class="metric-label" style="font-size:.6rem">RPO</div></div>
+          <div class="metric-box" style="padding:var(--sp-2)"><div class="metric-value green" style="font-size:1.2rem">5-10m</div><div class="metric-label" style="font-size:.6rem">RTO</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendation -->
+    <div class="callout success mt-8" style="font-size:.9rem">
+      <strong>Recommendation:</strong> Encourage consumers to prefer the <strong>Notification Polling API</strong> where possible &mdash; it has the simplest DR story.
+      For SNS-SQS consumers, implement <strong>dual-publish</strong> for zero failover action.
+      For Kafka, <strong>resolve Direct Connect from us-west-2 as a prerequisite</strong> (lead time: 4-8 weeks).
+    </div>
+
+    <!-- Data flow diagram -->
+    <h3 class="mt-6">Failover Data Flow</h3>
+    <div class="card-grid cols-2 mt-4">
+      <div class="card" style="padding:var(--sp-4)">
+        <div style="font-size:.8rem;font-weight:700;color:var(--accent);margin-bottom:var(--sp-2)">NORMAL (us-east-1)</div>
+        <div class="flow" style="font-size:.75rem">
+          <span class="flow-box">Producer</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-box">Notif. API</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-box">SNS (east) &rarr; SQS (east)</span>
+        </div>
+        <div class="flow" style="font-size:.75rem;margin-top:var(--sp-1)">
+          <span style="visibility:hidden" class="flow-box">Producer</span>
+          <span style="visibility:hidden" class="flow-arrow">&rarr;</span>
+          <span class="flow-box">Notif. API</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-box">SNS (west) &rarr; SQS (west)</span>
+          <span style="color:var(--text-muted);font-size:.7rem;margin-left:var(--sp-2)">(dual-pub)</span>
+        </div>
+        <div class="flow" style="font-size:.75rem;margin-top:var(--sp-1)">
+          <span style="visibility:hidden" class="flow-box">Producer</span>
+          <span style="visibility:hidden" class="flow-arrow">&rarr;</span>
+          <span class="flow-box">Notif. API</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-box">On-Prem Kafka (via DX east)</span>
+        </div>
+      </div>
+      <div class="card" style="padding:var(--sp-4)">
+        <div style="font-size:.8rem;font-weight:700;color:var(--warning);margin-bottom:var(--sp-2)">FAILOVER (us-west-2)</div>
+        <div class="flow" style="font-size:.75rem">
+          <span class="flow-box">Producer</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-box">Notif. API (west)</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-box">SNS (west) &rarr; SQS (west)</span>
+        </div>
+        <div class="flow" style="font-size:.75rem;margin-top:var(--sp-1)">
+          <span style="visibility:hidden" class="flow-box">Producer</span>
+          <span style="visibility:hidden" class="flow-arrow">&rarr;</span>
+          <span class="flow-box">Notif. API (west)</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-box" style="border-color:var(--danger)">SNS (east) &rarr; SQS (east)</span>
+          <span style="color:var(--danger);font-size:.7rem;margin-left:var(--sp-2)">DOWN</span>
+        </div>
+        <div class="flow" style="font-size:.75rem;margin-top:var(--sp-1)">
+          <span style="visibility:hidden" class="flow-box">Producer</span>
+          <span style="visibility:hidden" class="flow-arrow">&rarr;</span>
+          <span class="flow-box">Notif. API (west)</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-box">On-Prem Kafka (via DX <strong>west</strong>)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 11 — FAILOVER SCENARIOS
+     ============================================================ -->
+<section class="slide" id="slide-scenarios">
+  <div class="slide-inner">
+    <span class="label">Scenario Analysis</span>
+    <h2>Failover Scenarios</h2>
+
+    <div class="card-grid cols-2">
+      <!-- Scenario A -->
+      <div class="card">
+        <div class="scenario-header">
+          <div class="scenario-icon green">A</div>
+          <div><strong style="font-size:1.05rem">Full Failover &mdash; Everyone Flips</strong></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:var(--sp-3)">
+          All critical producers have CRR. All platform components activate in us-west-2.
+        </p>
+        <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap">
+          <span class="status"><span class="dot green"></span> APIs</span>
+          <span class="status"><span class="dot green"></span> Snowflake</span>
+          <span class="status"><span class="dot green"></span> Starburst</span>
+          <span class="status"><span class="dot green"></span> Databricks</span>
+          <span class="status"><span class="dot green"></span> Immuta</span>
+          <span class="status"><span class="dot yellow"></span> Data (15m stale)</span>
+        </div>
+        <div class="metric-row" style="margin-top:var(--sp-4)">
+          <div class="metric-box" style="padding:var(--sp-3)"><div class="metric-value" style="font-size:1.4rem">30-60m</div><div class="metric-label" style="font-size:.65rem">RTO</div></div>
+          <div class="metric-box" style="padding:var(--sp-3)"><div class="metric-value yellow" style="font-size:1.4rem">15m</div><div class="metric-label" style="font-size:.65rem">RPO</div></div>
+        </div>
+      </div>
+
+      <!-- Scenario B -->
+      <div class="card">
+        <div class="scenario-header">
+          <div class="scenario-icon orange">B</div>
+          <div><strong style="font-size:1.05rem">Partial &mdash; Critical Flip, Non-Critical Stay</strong></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:var(--sp-3)">
+          Critical producers have CRR; non-critical do not. Platform runs in us-west-2.
+        </p>
+        <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap">
+          <span class="status"><span class="dot green"></span> Critical Datasets</span>
+          <span class="status"><span class="dot red"></span> Non-Critical Datasets</span>
+          <span class="status"><span class="dot red"></span> Cross-tier Joins</span>
+        </div>
+        <div class="callout warning mt-4" style="font-size:.8rem">
+          <strong>Recommendation:</strong> Implement tiered resiliency SLA. Tier 1 (Critical) = mandatory CRR. Tier 3 = accepted downtime.
+        </div>
+      </div>
+
+      <!-- Scenario C -->
+      <div class="card">
+        <div class="scenario-header">
+          <div class="scenario-icon red">C</div>
+          <div><strong style="font-size:1.05rem">Producer Refuses to Flip in DR Test</strong></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:var(--sp-3)">
+          Platform & compute in us-west-2, but Producer X stays in us-east-1 during resilience test.
+        </p>
+        <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-bottom:var(--sp-3)">
+          <span class="status"><span class="dot red"></span> Starburst: UNAVAILABLE (gateway EP is same-region)</span>
+          <span class="status"><span class="dot yellow"></span> Snowflake: Possible (cross-region via managed network)</span>
+        </div>
+        <div class="callout danger" style="font-size:.8rem">
+          <strong>Mandate:</strong> Critical producers must contractually participate in DR tests. Escalate refusals to senior management.
+        </div>
+      </div>
+
+      <!-- Scenario D -->
+      <div class="card">
+        <div class="scenario-header">
+          <div class="scenario-icon blue">D</div>
+          <div><strong style="font-size:1.05rem">Platform Flips, Producers Stay</strong></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:var(--sp-3)">
+          Platform runs in west, but east is up. Producers continue writing to east. CRR feeds west.
+        </p>
+        <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap">
+          <span class="status"><span class="dot green"></span> All APIs</span>
+          <span class="status"><span class="dot green"></span> All Compute</span>
+          <span class="status"><span class="dot yellow"></span> Data: 15-min stale</span>
+        </div>
+        <p style="color:var(--text-muted);font-size:.82rem;margin-top:var(--sp-3)">
+          This is the <strong style="color:var(--text)">steady-state during any failover</strong>. The 15-minute staleness is the accepted RPO.
+        </p>
+      </div>
+
+      <!-- Scenario E -->
+      <div class="card" style="grid-column: span 2">
+        <div class="scenario-header">
+          <div class="scenario-icon purple">E</div>
+          <div><strong style="font-size:1.05rem">Immuta-Only Region Failure</strong></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:var(--sp-3)">
+          Immuta's us-east-1 deployment fails, but AWS us-east-1 is otherwise healthy. Starburst queries fail immediately; Snowflake & Databricks continue with last-synced policies.
+        </p>
+        <div style="display:flex;gap:var(--sp-8);flex-wrap:wrap">
+          <span class="status"><span class="dot red"></span> <strong>Starburst: Queries FAIL</strong> (runtime dependency)</span>
+          <span class="status"><span class="dot green"></span> Snowflake: Works (stale policies OK)</span>
+          <span class="status"><span class="dot green"></span> Databricks: Works (stale policies OK)</span>
+        </div>
+        <div class="callout warning mt-4" style="font-size:.82rem">
+          <strong>Action Required:</strong> Work with Immuta/Starburst to implement a policy cache with configurable staleness window (e.g., serve cached policies for up to 1 hour if Immuta API is unreachable).
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 12 — CONSUMER IMPACT MATRIX
+     ============================================================ -->
+<section class="slide" id="slide-consumer" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">Consumer Impact</span>
+    <h2>Impact Matrix Across Scenarios</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Scenario</th>
+            <th>Snowflake</th>
+            <th>Starburst</th>
+            <th>Databricks</th>
+            <th>Consumer Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A: Full Failover</strong></td>
+            <td><span class="status"><span class="dot yellow"></span> Reconnect to west</span></td>
+            <td><span class="status"><span class="dot yellow"></span> Reconnect to west</span></td>
+            <td><span class="status"><span class="dot yellow"></span> Reconnect to west</span></td>
+            <td>Update connection (or use CNAME)</td>
+          </tr>
+          <tr>
+            <td><strong>B: Critical Only</strong></td>
+            <td><span class="status"><span class="dot yellow"></span> Partial datasets</span></td>
+            <td><span class="status"><span class="dot yellow"></span> Partial datasets</span></td>
+            <td><span class="status"><span class="dot yellow"></span> Partial datasets</span></td>
+            <td>Check availability dashboard</td>
+          </tr>
+          <tr>
+            <td><strong>C: Producer Stays East</strong></td>
+            <td><span class="status"><span class="dot yellow"></span> That data unavail.</span></td>
+            <td><span class="status"><span class="dot red"></span> That data unavail.</span></td>
+            <td><span class="status"><span class="dot yellow"></span> That data unavail.</span></td>
+            <td>Adjust queries</td>
+          </tr>
+          <tr>
+            <td><strong>D: Platform Flips</strong></td>
+            <td><span class="status"><span class="dot green"></span> Works (15m stale)</span></td>
+            <td><span class="status"><span class="dot green"></span> Works (15m stale)</span></td>
+            <td><span class="status"><span class="dot green"></span> Works (15m stale)</span></td>
+            <td>None (if using CNAME)</td>
+          </tr>
+          <tr>
+            <td><strong>E: Immuta Down</strong></td>
+            <td><span class="status"><span class="dot green"></span> Works (stale policies)</span></td>
+            <td><span class="status"><span class="dot red"></span> Queries FAIL</span></td>
+            <td><span class="status"><span class="dot green"></span> Works (stale policies)</span></td>
+            <td>Use SF/DBX if Starburst down</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Notification Channel Availability -->
+    <h3 class="mt-8">Notification Channel Availability</h3>
+    <div class="table-wrap mt-4">
+      <table>
+        <thead>
+          <tr>
+            <th>Scenario</th>
+            <th>SNS-SQS (Dual-Pub)</th>
+            <th>On-Prem Kafka</th>
+            <th>Polling API</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A: Full Failover</strong></td>
+            <td><span class="status"><span class="dot green"></span> West SQS continues</span></td>
+            <td><span class="status"><span class="dot yellow"></span> If DX from west exists</span></td>
+            <td><span class="status"><span class="dot green"></span> Route53 failover</span></td>
+          </tr>
+          <tr>
+            <td><strong>B: Critical Only</strong></td>
+            <td><span class="status"><span class="dot green"></span> Notifications continue</span></td>
+            <td><span class="status"><span class="dot yellow"></span> DX dependency</span></td>
+            <td><span class="status"><span class="dot green"></span> Works</span></td>
+          </tr>
+          <tr>
+            <td><strong>C: Producer Stays</strong></td>
+            <td><span class="status"><span class="dot green"></span> Flows (data may be stale)</span></td>
+            <td><span class="status"><span class="dot yellow"></span> DX dependency</span></td>
+            <td><span class="status"><span class="dot green"></span> Works</span></td>
+          </tr>
+          <tr>
+            <td><strong>D: Platform Flips</strong></td>
+            <td><span class="status"><span class="dot green"></span> Both SQS active</span></td>
+            <td><span class="status"><span class="dot green"></span> Works (if DX from west)</span></td>
+            <td><span class="status"><span class="dot green"></span> Works (CNAME)</span></td>
+          </tr>
+          <tr>
+            <td><strong>E: Immuta Down</strong></td>
+            <td><span class="status"><span class="dot green"></span> Unaffected</span></td>
+            <td><span class="status"><span class="dot green"></span> Unaffected</span></td>
+            <td><span class="status"><span class="dot green"></span> Unaffected</span></td>
+          </tr>
+          <tr>
+            <td><strong>F: DX/VPN Down</strong></td>
+            <td><span class="status"><span class="dot green"></span> Unaffected</span></td>
+            <td><span class="status"><span class="dot red"></span> Kafka unreachable</span></td>
+            <td><span class="status"><span class="dot green"></span> Unaffected</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="mt-6">Consumer Preparation Checklist</h3>
+    <div class="card-grid cols-2 mt-4">
+      <div class="card" style="font-size:.85rem;color:var(--text-muted)">
+        <div style="font-size:.75rem;font-weight:700;color:var(--accent);margin-bottom:var(--sp-2);text-transform:uppercase">Compute Access</div>
+        <div style="display:flex;gap:var(--sp-2);align-items:baseline;margin-bottom:var(--sp-2)"><span style="color:var(--accent)">1.</span> Use platform <strong style="color:var(--text)">CNAMEs</strong></div>
+        <div style="display:flex;gap:var(--sp-2);align-items:baseline;margin-bottom:var(--sp-2)"><span style="color:var(--accent)">2.</span> Test <strong style="color:var(--text)">us-west-2</strong> connectivity</div>
+        <div style="display:flex;gap:var(--sp-2);align-items:baseline;margin-bottom:var(--sp-2)"><span style="color:var(--accent)">3.</span> Map cross-producer <strong style="color:var(--text)">join dependencies</strong></div>
+        <div style="display:flex;gap:var(--sp-2);align-items:baseline;margin-bottom:var(--sp-2)"><span style="color:var(--accent)">4.</span> Prepare <strong style="color:var(--text)">failover runbook</strong></div>
+      </div>
+      <div class="card" style="font-size:.85rem;color:var(--text-muted)">
+        <div style="font-size:.75rem;font-weight:700;color:var(--accent);margin-bottom:var(--sp-2);text-transform:uppercase">Notifications</div>
+        <div style="display:flex;gap:var(--sp-2);align-items:baseline;margin-bottom:var(--sp-2)"><span style="color:var(--accent)">5.</span> <strong style="color:var(--text)">(SNS-SQS)</strong> Create SQS in us-west-2, subscribe to west SNS</div>
+        <div style="display:flex;gap:var(--sp-2);align-items:baseline;margin-bottom:var(--sp-2)"><span style="color:var(--accent)">6.</span> <strong style="color:var(--text)">(SNS-SQS)</strong> Poll <strong>both</strong> SQS queues, deduplicate</div>
+        <div style="display:flex;gap:var(--sp-2);align-items:baseline;margin-bottom:var(--sp-2)"><span style="color:var(--accent)">7.</span> <strong style="color:var(--text)">(API)</strong> Use platform CNAME for polling endpoint</div>
+        <div style="display:flex;gap:var(--sp-2);align-items:baseline;margin-bottom:var(--sp-2)"><span style="color:var(--accent)">8.</span> Participate in <strong style="color:var(--text)">quarterly drills</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 13 — TARGET ARCHITECTURE
+     ============================================================ -->
+<section class="slide" id="slide-target">
+  <div class="slide-inner">
+    <span class="label">Target State</span>
+    <h2>Multi-Region Architecture</h2>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1100 560" width="100%" style="max-width:1100px" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Left Region -->
+        <rect x="10" y="10" width="520" height="460" rx="14" fill="#0f172a" stroke="#3b82f6" stroke-width="2"/>
+        <text x="270" y="38" text-anchor="middle" fill="#3b82f6" font-size="14" font-weight="700">us-east-1 (PRIMARY)</text>
+        <circle cx="30" cy="32" r="6" fill="#22c55e"/><circle cx="30" cy="32" r="6" fill="#22c55e" opacity=".4"><animate attributeName="r" values="6;12;6" dur="2s" repeatCount="indefinite"/></circle>
+
+        <!-- Right Region -->
+        <rect x="570" y="10" width="520" height="460" rx="14" fill="#0f172a" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 3"/>
+        <text x="830" y="38" text-anchor="middle" fill="#f59e0b" font-size="14" font-weight="700">us-west-2 (SECONDARY)</text>
+        <text x="830" y="55" text-anchor="middle" fill="#64748b" font-size="10">Warm Standby</text>
+
+        <!-- East Producers -->
+        <rect x="40" y="70" width="200" height="50" rx="8" fill="#1e293b" stroke="#60a5fa"/>
+        <text x="140" y="92" text-anchor="middle" fill="#f8fafc" font-size="11" font-weight="600">Producer S3 Buckets</text>
+        <text x="140" y="108" text-anchor="middle" fill="#94a3b8" font-size="9">Parquet + Iceberg</text>
+
+        <!-- West Producers -->
+        <rect x="600" y="70" width="200" height="50" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-dasharray="4 3"/>
+        <text x="700" y="92" text-anchor="middle" fill="#f8fafc" font-size="11" font-weight="600">S3 Buckets (Replicas)</text>
+        <text x="700" y="108" text-anchor="middle" fill="#94a3b8" font-size="9">via S3 CRR + RTC</text>
+
+        <!-- CRR Arrow -->
+        <line x1="240" y1="95" x2="600" y2="95" stroke="#f59e0b" stroke-width="2" stroke-dasharray="8 4"/>
+        <text x="420" y="88" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">S3 CRR + RTC (RPO: 15m)</text>
+        <polygon points="595,91 595,99 605,95" fill="#f59e0b"/>
+
+        <!-- East VPC EP -->
+        <rect x="50" y="135" width="180" height="24" rx="5" fill="rgba(59,130,246,.1)" stroke="#3b82f6" stroke-dasharray="3 2"/>
+        <text x="140" y="151" text-anchor="middle" fill="#60a5fa" font-size="8">S3 Gateway VPC EP</text>
+
+        <!-- West VPC EP -->
+        <rect x="610" y="135" width="180" height="24" rx="5" fill="rgba(245,158,11,.1)" stroke="#f59e0b" stroke-dasharray="3 2"/>
+        <text x="700" y="151" text-anchor="middle" fill="#fbbf24" font-size="8">S3 Gateway VPC EP</text>
+
+        <!-- East Compute -->
+        <rect x="40" y="175" width="130" height="45" rx="8" fill="#1e293b" stroke="#22c55e"/>
+        <text x="105" y="195" text-anchor="middle" fill="#f8fafc" font-size="10" font-weight="600">Snowflake</text>
+        <text x="105" y="210" text-anchor="middle" fill="#94a3b8" font-size="8">Storage Int. (east)</text>
+
+        <rect x="185" y="175" width="130" height="45" rx="8" fill="#1e293b" stroke="#22c55e"/>
+        <text x="250" y="195" text-anchor="middle" fill="#f8fafc" font-size="10" font-weight="600">Starburst</text>
+        <text x="250" y="210" text-anchor="middle" fill="#94a3b8" font-size="8">Glue Catalog (east)</text>
+
+        <rect x="330" y="175" width="130" height="45" rx="8" fill="#1e293b" stroke="#22c55e"/>
+        <text x="395" y="195" text-anchor="middle" fill="#f8fafc" font-size="10" font-weight="600">Databricks</text>
+        <text x="395" y="210" text-anchor="middle" fill="#94a3b8" font-size="8">Unity Catalog (east)</text>
+
+        <!-- West Compute -->
+        <rect x="600" y="175" width="130" height="45" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-dasharray="4 3"/>
+        <text x="665" y="195" text-anchor="middle" fill="#f8fafc" font-size="10" font-weight="600">Snowflake</text>
+        <text x="665" y="210" text-anchor="middle" fill="#94a3b8" font-size="8">Storage Int. (west)</text>
+
+        <rect x="745" y="175" width="130" height="45" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-dasharray="4 3"/>
+        <text x="810" y="195" text-anchor="middle" fill="#f8fafc" font-size="10" font-weight="600">Starburst</text>
+        <text x="810" y="210" text-anchor="middle" fill="#94a3b8" font-size="8">Glue Catalog (west)</text>
+
+        <rect x="890" y="175" width="130" height="45" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-dasharray="4 3"/>
+        <text x="955" y="195" text-anchor="middle" fill="#f8fafc" font-size="10" font-weight="600">Databricks</text>
+        <text x="955" y="210" text-anchor="middle" fill="#94a3b8" font-size="8">Unity Catalog (west)</text>
+
+        <!-- East Platform APIs -->
+        <rect x="40" y="250" width="220" height="55" rx="8" fill="#1e293b" stroke="#8b5cf6"/>
+        <text x="150" y="272" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600">Data Mesh APIs</text>
+        <text x="150" y="288" text-anchor="middle" fill="#94a3b8" font-size="8">ECS + Lambda</text>
+        <text x="150" y="300" text-anchor="middle" fill="#94a3b8" font-size="8">DynamoDB (Global Tables)</text>
+
+        <!-- West Platform APIs -->
+        <rect x="600" y="250" width="220" height="55" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-dasharray="4 3"/>
+        <text x="710" y="272" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600">Data Mesh APIs</text>
+        <text x="710" y="288" text-anchor="middle" fill="#94a3b8" font-size="8">ECS + Lambda</text>
+        <text x="710" y="300" text-anchor="middle" fill="#94a3b8" font-size="8">DynamoDB (Global Tables)</text>
+
+        <!-- DynamoDB sync -->
+        <line x1="260" y1="278" x2="600" y2="278" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="430" y="272" text-anchor="middle" fill="#c4b5fd" font-size="8">DynamoDB Replication (~2s)</text>
+        <polygon points="595,274 595,282 605,278" fill="#8b5cf6"/>
+
+        <!-- East Immuta -->
+        <rect x="40" y="330" width="220" height="50" rx="8" fill="#1e293b" stroke="#f43f5e"/>
+        <text x="150" y="352" text-anchor="middle" fill="#fb7185" font-size="10" font-weight="600">Immuta (east)</text>
+        <text x="150" y="368" text-anchor="middle" fill="#94a3b8" font-size="8">Policy Engine</text>
+
+        <!-- West Immuta -->
+        <rect x="600" y="330" width="220" height="50" rx="8" fill="#1e293b" stroke="#f43f5e" stroke-dasharray="4 3"/>
+        <text x="710" y="352" text-anchor="middle" fill="#fb7185" font-size="10" font-weight="600">Immuta (west)</text>
+        <text x="710" y="368" text-anchor="middle" fill="#94a3b8" font-size="8">Policy Engine</text>
+
+        <!-- Immuta sync -->
+        <line x1="260" y1="355" x2="600" y2="355" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <text x="430" y="350" text-anchor="middle" fill="#fb7185" font-size="8">Policy-as-Code (Git sync)</text>
+
+        <!-- Route53 -->
+        <rect x="280" y="410" width="260" height="45" rx="8" fill="#1e293b" stroke="#60a5fa"/>
+        <text x="410" y="430" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">Route53 Failover Routing</text>
+        <text x="410" y="444" text-anchor="middle" fill="#94a3b8" font-size="8">api / sf / sb .datamesh.company.com</text>
+        <line x1="350" y1="410" x2="150" y2="305" stroke="#60a5fa" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="470" y1="410" x2="710" y2="305" stroke="#60a5fa" stroke-width="1" stroke-dasharray="3 2"/>
+
+        <!-- Bottom legend -->
+        <rect x="10" y="490" width="1080" height="60" rx="10" fill="#0f172a" stroke="#475569"/>
+        <text x="50" y="515" fill="#94a3b8" font-size="10" font-weight="600">REPLICATION FLOWS:</text>
+        <line x1="190" y1="512" x2="230" y2="512" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 3"/>
+        <text x="235" y="516" fill="#fbbf24" font-size="9">S3 CRR+RTC (15m)</text>
+        <line x1="380" y1="512" x2="420" y2="512" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="6 3"/>
+        <text x="425" y="516" fill="#c4b5fd" font-size="9">DynamoDB (~2s)</text>
+        <line x1="550" y1="512" x2="590" y2="512" stroke="#22c55e" stroke-width="2"/>
+        <text x="595" y="516" fill="#4ade80" font-size="9">Glue Dual-Write (~0s)</text>
+        <line x1="740" y1="512" x2="780" y2="512" stroke="#f43f5e" stroke-width="2" stroke-dasharray="6 3"/>
+        <text x="785" y="516" fill="#fb7185" font-size="9">Policy-as-Code (CI/CD)</text>
+
+        <text x="550" y="540" text-anchor="middle" fill="#64748b" font-size="9">Snowflake External Tables: Automation recreation (RTO: 10-15 min) &nbsp;&nbsp;|&nbsp;&nbsp; Snowflake Internal: Replication Groups</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 14 — TIMELINE
+     ============================================================ -->
+<section class="slide" id="slide-timeline" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">Implementation</span>
+    <h2>20-Week Implementation Plan</h2>
+
+    <div class="two-col">
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-phase">Phase 1 &mdash; Weeks 1-6</div>
+          <div class="tl-title">Foundation</div>
+          <div class="tl-body">
+            <ul>
+              <li>DynamoDB Global Tables activated</li>
+              <li>VPC + networking in us-west-2</li>
+              <li>ECS + Lambda deployed (warm standby)</li>
+              <li>Route53 failover routing configured</li>
+              <li>Tier 1 producers begin S3 CRR setup</li>
+              <li>Glue Catalog dual-write enabled</li>
+            </ul>
+            <div class="callout success mt-4" style="font-size:.8rem"><strong>Exit:</strong> APIs running in us-west-2, data replicating</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-phase">Phase 2 &mdash; Weeks 5-12</div>
+          <div class="tl-title">Compute Platform DR</div>
+          <div class="tl-body">
+            <ul>
+              <li>Snowflake us-west-2 account + replication</li>
+              <li>External table recreation automation built</li>
+              <li>Starburst cluster deployed in us-west-2</li>
+              <li>Databricks workspace provisioned</li>
+              <li>Iceberg failover automation (register_table)</li>
+              <li>Consumer routing (CNAME / Client Redirect)</li>
+            </ul>
+            <div class="callout success mt-4" style="font-size:.8rem"><strong>Exit:</strong> All compute queryable in us-west-2</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-phase">Phase 3 &mdash; Weeks 10-16</div>
+          <div class="tl-title">Governance &amp; Validation</div>
+          <div class="tl-body">
+            <ul>
+              <li>Immuta deployed in us-west-2</li>
+              <li>Policy-as-Code pipeline live</li>
+              <li>End-to-end validation across all platforms</li>
+              <li><strong>Failover Drill #1 with critical producers</strong></li>
+            </ul>
+            <div class="callout success mt-4" style="font-size:.8rem"><strong>Exit:</strong> First successful failover drill completed</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-phase">Phase 4 &mdash; Weeks 16-20</div>
+          <div class="tl-title">Hardening &amp; Sign-off</div>
+          <div class="tl-body">
+            <ul>
+              <li>Monitoring &amp; alerting operational</li>
+              <li>Runbook finalized &amp; approved</li>
+              <li>Failover Drill #2 (Tier 2 producers + consumers)</li>
+              <li><strong>Architecture review &amp; management sign-off</strong></li>
+            </ul>
+            <div class="callout success mt-4" style="font-size:.8rem"><strong>Exit:</strong> Production-ready DR. Quarterly drill cadence.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3>Gantt Overview</h3>
+        <div class="card" style="padding:var(--sp-4)">
+          <svg viewBox="0 0 400 200" width="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Grid -->
+            <line x1="80" y1="30" x2="80" y2="180" stroke="#475569" stroke-width=".5"/>
+            <line x1="160" y1="30" x2="160" y2="180" stroke="#475569" stroke-width=".5"/>
+            <line x1="240" y1="30" x2="240" y2="180" stroke="#475569" stroke-width=".5"/>
+            <line x1="320" y1="30" x2="320" y2="180" stroke="#475569" stroke-width=".5"/>
+            <line x1="380" y1="30" x2="380" y2="180" stroke="#475569" stroke-width=".5"/>
+
+            <!-- Week labels -->
+            <text x="80" y="20" text-anchor="middle" fill="#94a3b8" font-size="9">W4</text>
+            <text x="160" y="20" text-anchor="middle" fill="#94a3b8" font-size="9">W8</text>
+            <text x="240" y="20" text-anchor="middle" fill="#94a3b8" font-size="9">W12</text>
+            <text x="320" y="20" text-anchor="middle" fill="#94a3b8" font-size="9">W16</text>
+            <text x="380" y="20" text-anchor="middle" fill="#94a3b8" font-size="9">W20</text>
+
+            <!-- Bars -->
+            <!-- Phase 1: W1-6 = 0-120 -->
+            <rect x="10" y="40" width="120" height="26" rx="5" fill="#3b82f6" opacity=".8"/>
+            <text x="18" y="57" fill="#fff" font-size="9" font-weight="600">Phase 1: Foundation</text>
+
+            <!-- Phase 2: W5-12 = 80-240 -->
+            <rect x="80" y="76" width="160" height="26" rx="5" fill="#8b5cf6" opacity=".8"/>
+            <text x="88" y="93" fill="#fff" font-size="9" font-weight="600">Phase 2: Compute DR</text>
+
+            <!-- Phase 3: W10-16 = 180-320 -->
+            <rect x="180" y="112" width="140" height="26" rx="5" fill="#a855f7" opacity=".8"/>
+            <text x="188" y="129" fill="#fff" font-size="9" font-weight="600">Phase 3: Governance</text>
+
+            <!-- Phase 4: W16-20 = 300-380 -->
+            <rect x="300" y="148" width="80" height="26" rx="5" fill="#22c55e" opacity=".8"/>
+            <text x="308" y="165" fill="#fff" font-size="9" font-weight="600">Ph4: Harden</text>
+
+            <!-- Drill markers -->
+            <line x1="300" y1="35" x2="300" y2="175" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="300" y="190" text-anchor="middle" fill="#fbbf24" font-size="8">Drill #1</text>
+            <line x1="365" y1="35" x2="365" y2="175" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="365" y="190" text-anchor="middle" fill="#fbbf24" font-size="8">Drill #2</text>
+          </svg>
+        </div>
+
+        <h3 class="mt-6">Producer Tiering</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tier</th><th>Definition</th><th>Requirement</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-critical">Tier 1</span></td>
+                <td>Revenue, regulatory, SLA-bound</td>
+                <td><strong style="color:var(--text)">Mandatory</strong></td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-high">Tier 2</span></td>
+                <td>Widely used, not revenue-critical</td>
+                <td><strong style="color:var(--text)">Recommended</strong></td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-medium">Tier 3</span></td>
+                <td>Low-usage, internal analytics</td>
+                <td><strong style="color:var(--text)">Optional</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 15 — ACTION PLAN
+     ============================================================ -->
+<section class="slide" id="slide-actions">
+  <div class="slide-inner">
+    <span class="label">Ownership</span>
+    <h2>Action Plan by Team</h2>
+
+    <div class="card-grid cols-2">
+      <!-- Producers -->
+      <div class="card">
+        <h3 style="color:var(--accent)">Producer Teams (8 actions)</h3>
+        <div class="table-wrap" style="margin:var(--sp-3) 0">
+          <table>
+            <thead><tr><th>Action</th><th>Pri</th></tr></thead>
+            <tbody>
+              <tr><td>Create S3 bucket in us-west-2</td><td><span class="badge badge-p0">P0</span></td></tr>
+              <tr><td>Enable S3 CRR + RTC</td><td><span class="badge badge-p0">P0</span></td></tr>
+              <tr><td>Configure bucket policy for compute roles</td><td><span class="badge badge-p0">P0</span></td></tr>
+              <tr><td>Create S3 Access Points (Starburst)</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td>Validate Iceberg metadata replication</td><td><span class="badge badge-p0">P0</span></td></tr>
+              <tr><td>Monitor CRR lag via CloudWatch</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td>Evaluate MRAP for new Iceberg tables</td><td><span class="badge badge-p2">P2</span></td></tr>
+              <tr><td>Participate in quarterly drills</td><td><span class="badge badge-p1">P1</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout success" style="font-size:.82rem">Platform team provides ready-to-deploy CloudFormation/Terraform templates.</div>
+      </div>
+
+      <!-- Platform Team -->
+      <div class="card">
+        <h3 style="color:var(--accent)">Data Mesh Platform Team (28 actions)</h3>
+        <div class="table-wrap" style="margin:var(--sp-3) 0">
+          <table>
+            <thead><tr><th>Key Actions</th><th>Pri</th><th>Cmplx</th></tr></thead>
+            <tbody>
+              <tr><td>DynamoDB Global Tables</td><td><span class="badge badge-p0">P0</span></td><td>Med</td></tr>
+              <tr><td>Deploy ECS in us-west-2</td><td><span class="badge badge-p0">P0</span></td><td>High</td></tr>
+              <tr><td>Deploy Lambdas in us-west-2</td><td><span class="badge badge-p0">P0</span></td><td>Med</td></tr>
+              <tr><td>Route53 failover routing</td><td><span class="badge badge-p0">P0</span></td><td>Med</td></tr>
+              <tr><td><strong>Glue Catalog dual-write</strong></td><td><span class="badge badge-p0">P0</span></td><td>High</td></tr>
+              <tr><td><strong>Snowflake ext table automation</strong></td><td><span class="badge badge-p0">P0</span></td><td style="color:#f87171">V.High</td></tr>
+              <tr><td><strong>Iceberg failover automation</strong></td><td><span class="badge badge-p0">P0</span></td><td style="color:#f87171">V.High</td></tr>
+              <tr><td>Starburst cluster us-west-2</td><td><span class="badge badge-p0">P0</span></td><td>High</td></tr>
+              <tr><td>Snowflake account us-west-2</td><td><span class="badge badge-p0">P0</span></td><td>Med</td></tr>
+              <tr><td>Build failover runbook</td><td><span class="badge badge-p0">P0</span></td><td>Med</td></tr>
+              <tr><td><strong>Create SNS in us-west-2 + dual-publish</strong></td><td><span class="badge badge-p0">P0</span></td><td>Med</td></tr>
+              <tr><td><strong>Establish DX/VPN us-west-2 &rarr; on-prem</strong></td><td><span class="badge badge-p0">P0</span></td><td style="color:#f87171">V.High</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Governance -->
+      <div class="card">
+        <h3 style="color:var(--accent)">Governance / Immuta Team (6 actions)</h3>
+        <div class="table-wrap" style="margin:var(--sp-3) 0">
+          <table>
+            <thead><tr><th>Action</th><th>Pri</th></tr></thead>
+            <tbody>
+              <tr><td>Deploy Immuta in us-west-2</td><td><span class="badge badge-p0">P0</span></td></tr>
+              <tr><td>Policy-as-Code pipeline (Git&rarr;both)</td><td><span class="badge badge-p0">P0</span></td></tr>
+              <tr><td>Configure west Immuta integrations</td><td><span class="badge badge-p0">P0</span></td></tr>
+              <tr><td>Validate policy consistency</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td>Investigate Starburst policy caching</td><td><span class="badge badge-p2">P2</span></td></tr>
+              <tr><td>Participate in drills</td><td><span class="badge badge-p1">P1</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Consumers -->
+      <div class="card">
+        <h3 style="color:var(--accent)">Consumer Teams (11 actions)</h3>
+        <!-- C1-C5: general, C6: subscribe status, C7-C9: SNS-SQS, C10: API, C11: Kafka -->
+        <div class="table-wrap" style="margin:var(--sp-3) 0">
+          <table>
+            <thead><tr><th>Action</th><th>Pri</th></tr></thead>
+            <tbody>
+              <tr><td>Switch to platform CNAMEs</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td>Test us-west-2 connectivity</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td>Map critical query dependencies</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td>Prepare failover runbook</td><td><span class="badge badge-p2">P2</span></td></tr>
+              <tr><td>Subscribe to platform status notifications</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td>Participate in drills</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td colspan="2" style="color:var(--accent);font-weight:600;padding-top:var(--sp-3)">SNS-SQS Consumers:</td></tr>
+              <tr><td><strong>Create SQS in us-west-2 + subscribe to west SNS</strong></td><td><span class="badge badge-p0">P0</span></td></tr>
+              <tr><td>Update app to poll both east &amp; west SQS</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td>Implement idempotent processing</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td colspan="2" style="color:var(--accent);font-weight:600;padding-top:var(--sp-3)">API Consumers:</td></tr>
+              <tr><td>Use platform CNAME for polling</td><td><span class="badge badge-p1">P1</span></td></tr>
+              <tr><td colspan="2" style="color:var(--accent);font-weight:600;padding-top:var(--sp-3)">Kafka Consumers:</td></tr>
+              <tr><td>Validate on-prem Kafka reachable from west</td><td><span class="badge badge-p1">P1</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 16 — BLOCKERS & RISKS
+     ============================================================ -->
+<section class="slide" id="slide-blockers" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">Risk Management</span>
+    <h2>Blockers &amp; Risks</h2>
+
+    <div class="two-col">
+      <div>
+        <h3 style="color:var(--danger)">Blockers (Must Resolve)</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Blocker</th><th>Owner</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Snowflake can't replicate ext/Iceberg tables</strong></td>
+                <td>Platform</td>
+                <td><span class="badge badge-open">OPEN</span></td>
+              </tr>
+              <tr>
+                <td><strong>Iceberg metadata absolute paths</strong></td>
+                <td>Platform</td>
+                <td><span class="badge badge-open">OPEN</span></td>
+              </tr>
+              <tr>
+                <td><strong>Producer adoption dependency</strong></td>
+                <td>Mgmt</td>
+                <td><span class="badge badge-open">OPEN</span></td>
+              </tr>
+              <tr>
+                <td><strong>Immuta cross-region licensing</strong></td>
+                <td>Governance</td>
+                <td><span class="badge badge-open">OPEN</span></td>
+              </tr>
+              <tr>
+                <td><strong>Starburst runtime dep on Immuta</strong></td>
+                <td>Gov + Platform</td>
+                <td><span class="badge badge-open">OPEN</span></td>
+              </tr>
+              <tr>
+                <td><strong>Snowflake Biz Critical edition</strong></td>
+                <td>Platform</td>
+                <td><span class="badge badge-warn">INVESTIGATING</span></td>
+              </tr>
+              <tr>
+                <td><strong>On-prem Kafka: No DX/VPN from us-west-2</strong></td>
+                <td>Platform + Network</td>
+                <td><span class="badge badge-open">OPEN</span></td>
+              </tr>
+              <tr>
+                <td><strong>Consumer SQS only in us-east-1</strong></td>
+                <td>Consumer Teams</td>
+                <td><span class="badge badge-open">OPEN</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 style="color:var(--warning)">Top Risks</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Risk</th><th>Prob</th><th>Impact</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Iceberg metadata/data ordering race</strong></td>
+                <td><span class="badge badge-critical">HIGH</span></td>
+                <td>Transient query failures</td>
+              </tr>
+              <tr>
+                <td><strong>Consumer hardcoded connection strings</strong></td>
+                <td><span class="badge badge-critical">HIGH</span></td>
+                <td>Extended consumer RTO</td>
+              </tr>
+              <tr>
+                <td><strong>CRR lag exceeds 15 min</strong></td>
+                <td><span class="badge badge-high">MED</span></td>
+                <td>RPO breach</td>
+              </tr>
+              <tr>
+                <td><strong>Producer CRR misconfiguration</strong></td>
+                <td><span class="badge badge-high">MED</span></td>
+                <td>Incomplete DR data</td>
+              </tr>
+              <tr>
+                <td><strong>SF table recreation too slow</strong></td>
+                <td><span class="badge badge-high">MED</span></td>
+                <td>Extended RTO</td>
+              </tr>
+              <tr>
+                <td><strong>Cost overrun (warm standby)</strong></td>
+                <td><span class="badge badge-high">MED</span></td>
+                <td>Budget pressure</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 17 — RPO / RTO
+     ============================================================ -->
+<section class="slide" id="slide-rpo">
+  <div class="slide-inner">
+    <span class="label">Recovery Objectives</span>
+    <h2>RPO / RTO by Component</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>RPO</th><th>RTO</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>S3 Data (Parquet)</strong></td>
+            <td><span class="badge badge-warn">15 min</span></td>
+            <td><span class="badge badge-ok">0 min</span></td>
+            <td>Pre-replicated, available immediately</td>
+          </tr>
+          <tr>
+            <td><strong>S3 Data (Iceberg)</strong></td>
+            <td><span class="badge badge-warn">15 min</span></td>
+            <td><span class="badge badge-warn">10-15 min</span></td>
+            <td>Requires validation + register_table</td>
+          </tr>
+          <tr>
+            <td><strong>DynamoDB Metadata</strong></td>
+            <td><span class="badge badge-ok">~2 sec</span></td>
+            <td><span class="badge badge-ok">0 min</span></td>
+            <td>Global Tables, immediately available</td>
+          </tr>
+          <tr>
+            <td><strong>Glue Catalog</strong></td>
+            <td><span class="badge badge-ok">~0</span></td>
+            <td><span class="badge badge-ok">0 min</span></td>
+            <td>Dual-write keeps west in sync</td>
+          </tr>
+          <tr>
+            <td><strong>Platform APIs</strong></td>
+            <td><span class="badge badge-ok">~2 sec</span></td>
+            <td><span class="badge badge-warn">5-10 min</span></td>
+            <td>Route53 TTL + ECS scale-up</td>
+          </tr>
+          <tr>
+            <td><strong>Snowflake (External/Iceberg)</strong></td>
+            <td><span class="badge badge-warn">N/A</span></td>
+            <td><span class="badge badge-critical" style="background:rgba(239,68,68,.15)">10-20 min</span></td>
+            <td style="color:#f87171"><strong>Bottleneck</strong> &mdash; automation recreation</td>
+          </tr>
+          <tr>
+            <td><strong>Starburst</strong></td>
+            <td><span class="badge badge-ok">~0</span></td>
+            <td><span class="badge badge-warn">5-10 min</span></td>
+            <td>Cluster scale-up time</td>
+          </tr>
+          <tr>
+            <td><strong>Immuta</strong></td>
+            <td><span class="badge badge-warn">Last CI/CD</span></td>
+            <td><span class="badge badge-warn">5-10 min</span></td>
+            <td>Policies pre-synced via Git</td>
+          </tr>
+          <tr>
+            <td><strong>Notif: SNS-SQS (Dual-Pub)</strong></td>
+            <td><span class="badge badge-ok">~0</span></td>
+            <td><span class="badge badge-ok">0 min</span></td>
+            <td>Both regions active simultaneously</td>
+          </tr>
+          <tr>
+            <td><strong>Notif: On-Prem Kafka</strong></td>
+            <td><span class="badge badge-ok">~2 sec</span></td>
+            <td><span class="badge badge-warn">5-10 min</span></td>
+            <td style="color:#f87171"><strong>Blocked</strong> if no DX/VPN from west</td>
+          </tr>
+          <tr>
+            <td><strong>Notif: Polling API</strong></td>
+            <td><span class="badge badge-ok">~2 sec</span></td>
+            <td><span class="badge badge-warn">5-10 min</span></td>
+            <td>Covered by platform API failover</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="metric-row mt-8">
+      <div class="metric-box">
+        <div class="metric-value" style="font-size:2rem;color:var(--text)">Overall Platform</div>
+        <div class="metric-label" style="font-size:.7rem">&nbsp;</div>
+      </div>
+      <div class="metric-box" style="border-color:var(--warning)">
+        <div class="metric-value yellow">&#8804; 15 min</div>
+        <div class="metric-label">RPO (Data Loss)</div>
+      </div>
+      <div class="metric-box" style="border-color:var(--accent)">
+        <div class="metric-value">45-60 min</div>
+        <div class="metric-label">Expected RTO (with parallelism)</div>
+      </div>
+      <div class="metric-box" style="border-color:var(--danger)">
+        <div class="metric-value red" style="font-size:1.4rem">SF Ext Tables</div>
+        <div class="metric-label">Bottleneck</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 18 — DECISIONS
+     ============================================================ -->
+<section class="slide" id="slide-decisions" style="background:var(--gradient-hero)">
+  <div class="slide-inner">
+    <span class="label">Decisions Required</span>
+    <h2>12 Decisions Pending Approval</h2>
+    <p class="subtitle">These require sign-off from Senior Architecture and Management before implementation begins.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Decision</th><th>Recommendation</th><th>Rationale</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>D1</strong></td>
+            <td>Failover Strategy</td>
+            <td><strong style="color:var(--success)">Active-Passive (Warm Standby)</strong></td>
+            <td>Cost-effective; meets RPO/RTO targets</td>
+          </tr>
+          <tr>
+            <td><strong>D2</strong></td>
+            <td>Producer Multi-Region Mandate</td>
+            <td><strong style="color:var(--success)">Tiered: Tier 1 mandatory, Tier 2 recommended</strong></td>
+            <td>Pragmatic; not all datasets warrant DR cost</td>
+          </tr>
+          <tr>
+            <td><strong>D3</strong></td>
+            <td>Iceberg Strategy (New Tables)</td>
+            <td><strong style="color:var(--success)">S3 MRAP-based paths</strong></td>
+            <td>Eliminates metadata path problem long-term</td>
+          </tr>
+          <tr>
+            <td><strong>D4</strong></td>
+            <td>Iceberg Strategy (Existing Tables)</td>
+            <td><strong style="color:var(--success)">Failover-time re-registration</strong></td>
+            <td>Lower disruption than migration</td>
+          </tr>
+          <tr>
+            <td><strong>D5</strong></td>
+            <td>Snowflake Edition Upgrade</td>
+            <td><strong style="color:var(--warning)">Upgrade to Business Critical</strong></td>
+            <td>Required for failover groups + Client Redirect</td>
+          </tr>
+          <tr>
+            <td><strong>D6</strong></td>
+            <td>Glue Catalog Sync</td>
+            <td><strong style="color:var(--success)">Dual-write from Notification API</strong></td>
+            <td>Real-time; no separate infra</td>
+          </tr>
+          <tr>
+            <td><strong>D7</strong></td>
+            <td>Immuta Deployment Model</td>
+            <td><strong style="color:var(--warning)">Engage vendor (SaaS vs self-managed)</strong></td>
+            <td>Depends on current deployment</td>
+          </tr>
+          <tr>
+            <td><strong>D8</strong></td>
+            <td>Failover Trigger</td>
+            <td><strong style="color:var(--success)">Manual (with automated alerting)</strong></td>
+            <td>Avoids split-brain; human judgment</td>
+          </tr>
+          <tr>
+            <td><strong>D9</strong></td>
+            <td>Consumer Connection Strategy</td>
+            <td><strong style="color:var(--success)">CNAME + Snowflake Client Redirect</strong></td>
+            <td>Transparent to consumers</td>
+          </tr>
+          <tr>
+            <td><strong>D10</strong></td>
+            <td>Quarterly DR Drill Mandate</td>
+            <td><strong style="color:var(--success)">Mandatory for Tier 1 + all platform teams</strong></td>
+            <td>Only way to validate readiness</td>
+          </tr>
+          <tr>
+            <td><strong>D11</strong></td>
+            <td>SNS-SQS Notification DR Strategy</td>
+            <td><strong style="color:var(--success)">Dual-Publish to both regional SNS topics</strong></td>
+            <td>Zero consumer action during failover</td>
+          </tr>
+          <tr>
+            <td><strong>D12</strong></td>
+            <td>On-Prem Kafka DR Connectivity</td>
+            <td><strong style="color:var(--success)">Provision Direct Connect from us-west-2</strong></td>
+            <td>Only reliable option; TGW depends on east</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 19 — NEXT STEPS
+     ============================================================ -->
+<section class="slide" id="slide-next">
+  <div class="hero-bg">
+    <div class="grid-lines"></div>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+  </div>
+  <div class="slide-inner">
+    <span class="label">Next Steps</span>
+    <h2>Immediate Actions Required</h2>
+    <div class="divider"></div>
+
+    <div class="card-grid cols-2">
+      <div class="card" style="border-color:var(--danger)">
+        <h3 style="color:var(--danger)">Week 0 &mdash; Decisions (This Week)</h3>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.9rem">
+          <li style="padding:.4rem 0">&#9632; Approve Active-Passive Warm Standby strategy (D1)</li>
+          <li style="padding:.4rem 0">&#9632; Approve producer tiering model (D2)</li>
+          <li style="padding:.4rem 0">&#9632; Verify Snowflake edition and budget for upgrade (D5)</li>
+          <li style="padding:.4rem 0">&#9632; Engage Immuta vendor on us-west-2 deployment (D7)</li>
+          <li style="padding:.4rem 0">&#9632; Initiate Direct Connect from us-west-2 for Kafka (D12) &mdash; 4-8 week lead time</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:var(--accent)">
+        <h3 style="color:var(--accent)">Weeks 1-2 &mdash; Foundation Kickoff</h3>
+        <ul style="list-style:none;color:var(--text-muted);font-size:.9rem">
+          <li style="padding:.4rem 0">&#9654; Enable DynamoDB Global Tables</li>
+          <li style="padding:.4rem 0">&#9654; Begin VPC/networking setup in us-west-2</li>
+          <li style="padding:.4rem 0">&#9654; Publish producer onboarding templates</li>
+          <li style="padding:.4rem 0">&#9654; Identify and notify Tier 1 producers</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mt-8" style="border-color:var(--success);text-align:center;padding:var(--sp-8)">
+      <h3 style="color:var(--success);font-size:1.3rem">Target: Production-Ready DR in 20 Weeks</h3>
+      <p style="color:var(--text-muted);font-size:.95rem;margin-top:var(--sp-2)">
+        RPO &#8804; 15 min &nbsp;&bull;&nbsp; RTO &#8804; 60 min &nbsp;&bull;&nbsp; ~25-35% of primary cost &nbsp;&bull;&nbsp; Quarterly drill cadence
+      </p>
+    </div>
+
+    <div class="text-center mt-8">
+      <p style="color:var(--text-muted);font-size:.85rem">
+        Full technical proposal available: <strong>DataMesh-MultiRegion-Resiliency-Proposal.md</strong>
+      </p>
+      <p style="color:var(--text-muted);font-size:.75rem;margin-top:var(--sp-2)">
+        Data Mesh Platform Team &nbsp;&bull;&nbsp; April 2026
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+   JAVASCRIPT
+   ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  // --- Slide intersection observer for entrance animations ---
+  const inners = document.querySelectorAll('.slide-inner');
+  const obsOpts = { threshold: 0.15 };
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) e.target.classList.add('visible');
+    });
+  }, obsOpts);
+  inners.forEach(el => obs.observe(el));
+
+  // --- Progress bar ---
+  const progress = document.getElementById('progress');
+  function updateProgress() {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = h > 0 ? (window.scrollY / h) * 100 : 0;
+    progress.style.width = pct + '%';
+  }
+
+  // --- Active nav link + slide counter ---
+  const slides = document.querySelectorAll('.slide');
+  const navLinks = document.querySelectorAll('nav .nav-links a');
+  const counter = document.getElementById('slideCounter');
+  const total = slides.length;
+
+  function updateNav() {
+    let current = 0;
+    slides.forEach((s, i) => {
+      if (window.scrollY >= s.offsetTop - window.innerHeight / 2) current = i;
+    });
+    navLinks.forEach(a => a.classList.remove('active'));
+    if (navLinks[current]) navLinks[current].classList.add('active');
+    counter.textContent = (current + 1) + ' / ' + total;
+  }
+
+  // --- Nav auto-hide on scroll down, show on scroll up ---
+  const nav = document.getElementById('nav');
+  let lastY = 0;
+  function handleScroll() {
+    const y = window.scrollY;
+    if (y > lastY && y > 100) nav.classList.add('hidden');
+    else nav.classList.remove('hidden');
+    lastY = y;
+    updateProgress();
+    updateNav();
+  }
+
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  updateProgress();
+  updateNav();
+  // Trigger initial visibility
+  setTimeout(() => inners.forEach(el => {
+    if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add('visible');
+  }), 100);
+
+  // --- Keyboard navigation ---
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+      e.preventDefault();
+      let current = 0;
+      slides.forEach((s, i) => {
+        if (window.scrollY >= s.offsetTop - 100) current = i;
+      });
+      const next = Math.min(current + 1, slides.length - 1);
+      slides[next].scrollIntoView({ behavior: 'smooth' });
+    }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      let current = 0;
+      slides.forEach((s, i) => {
+        if (window.scrollY >= s.offsetTop - 100) current = i;
+      });
+      const prev = Math.max(current - 1, 0);
+      slides[prev].scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+})();
+</script>
+</body>
+</html>
