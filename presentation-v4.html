@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Mesh Multi-Region Resiliency — v4 (AWS Architecture)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --aws:#232F3E;--aws2:#37475A;--aws-or:#FF9900;
+  --compute:#ED7100;--storage:#3F8624;--database:#4053D6;--network:#8C4FFF;
+  --integration:#E7157B;--security:#DD344C;
+  --sf-c:#29B5E8;--sb-c:#4695EB;--dbx-c:#FF3621;--imm-c:#0B7285;--kafka-c:#231F20;
+  --east:#D45B07;--east-bg:#FEF3E6;--east-bdr:#EDAE6C;
+  --west:#0972A8;--west-bg:#E6F4FB;--west-bdr:#6EBCD9;
+  --bg:#EAEDED;--surface:#fff;--border:#D5DBDB;
+  --text:#16191F;--text2:#545B64;--text3:#879596;
+  --active:#1D8102;--active-bg:#E3FCDE;--standby:#0073BB;--standby-bg:#E8F4FD;
+  --danger:#D13212;--danger-bg:#FBEAE5;--warn:#B07C09;--warn-bg:#FDF3D7;
+  --sync:#8C6A0A;--sync-bg:#FDF3D7;--sync-bdr:#E0C77A;
+}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);}
+.mono{font-family:'JetBrains Mono',monospace;}
+.ic{display:inline-block;vertical-align:middle;flex-shrink:0;}
+
+/* ── Slide ── */
+.slide{width:1440px;min-height:920px;margin:32px auto;background:var(--surface);border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.08),0 12px 40px rgba(0,0,0,.06);overflow:hidden;page-break-after:always;}
+.s-hdr{background:linear-gradient(135deg,#232F3E 0%,#37475A 100%);color:#fff;padding:22px 44px;display:flex;justify-content:space-between;align-items:center;}
+.s-hdr h1{font-size:26px;font-weight:800;letter-spacing:-.3px;}
+.s-hdr .sub{font-size:13px;opacity:.8;margin-top:3px;font-weight:400;}
+.s-num{font-family:'JetBrains Mono',monospace;font-size:12px;opacity:.7;background:rgba(255,255,255,.1);padding:6px 16px;border-radius:20px;white-space:nowrap;}
+.s-body{padding:20px 36px 24px;}
+.s-ftr{padding:8px 44px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text3);border-top:1px solid var(--border);}
+
+/* ── Legend ── */
+.legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:8px 14px;background:#F7F8F8;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--text2);}
+
+/* ── Region ── */
+.two-region{display:grid;grid-template-columns:1fr 80px 1fr;gap:0;align-items:stretch;}
+.region{border:2.5px solid;border-radius:12px;padding:14px 16px;position:relative;}
+.region.east{border-color:var(--east-bdr);background:var(--east-bg);}
+.region.west{border-color:var(--west-bdr);background:var(--west-bg);}
+.rlabel{position:absolute;top:-12px;left:16px;padding:3px 14px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.3px;color:#fff;}
+.rlabel.east{background:var(--east);}
+.rlabel.west{background:var(--west);}
+.rstatus{position:absolute;top:-12px;right:16px;padding:3px 12px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;}
+.rstatus.active{background:var(--active);color:#fff;}
+.rstatus.standby{background:var(--standby);color:#fff;}
+
+/* ── Sync column ── */
+.sync-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:20px 0;}
+.sync-pill{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--sync-bg);border:1px solid var(--sync-bdr);border-radius:6px;padding:3px 6px;font-family:'JetBrains Mono',monospace;font-size:7px;font-weight:600;color:var(--sync);text-align:center;line-height:1.3;}
+.sync-arrow{font-size:12px;color:var(--aws-or);line-height:1;margin:1px 0;}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+.pulse{animation:pulse 2s ease-in-out infinite;}
+
+/* ── Component boxes ── */
+.cbox{display:flex;align-items:flex-start;gap:7px;border:2px solid;border-radius:8px;padding:7px 10px;background:#fff;min-width:80px;}
+.cbox .t{font-weight:700;font-size:11px;margin-bottom:1px;}
+.cbox .d{font-size:9px;color:var(--text2);line-height:1.35;font-family:'JetBrains Mono',monospace;}
+.cbox.prod{border-color:rgba(63,134,36,.4);background:rgba(63,134,36,.04);}
+.cbox.comp{border-color:rgba(237,113,0,.35);background:rgba(237,113,0,.04);}
+.cbox.noflip{border-color:rgba(209,50,18,.4);background:rgba(209,50,18,.05);}
+
+/* ── Sections ── */
+.rsec{margin-bottom:6px;}
+.rsec-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);margin-bottom:4px;padding-left:2px;}
+.rsec-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+
+/* ── Platform panel ── */
+.plat-panel{background:#EFF3FF;border:2px solid rgba(64,83,214,.3);border-radius:10px;padding:10px 12px;margin-bottom:6px;}
+.plat-panel .pt{font-weight:700;font-size:12px;color:var(--database);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.plat-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.plat-cell{background:#fff;border:1px solid rgba(64,83,214,.2);border-radius:6px;padding:5px 8px;font-size:9px;color:var(--text);}
+.plat-cell .l{font-weight:700;font-size:10px;color:var(--database);margin-bottom:2px;display:flex;align-items:center;gap:4px;}
+.plat-cell .icons{display:flex;gap:2px;margin-bottom:3px;}
+
+/* ── Notification panel ── */
+.ntfy-panel{background:rgba(231,21,123,.04);border:2px solid rgba(231,21,123,.25);border-radius:10px;padding:8px 10px;margin-bottom:6px;}
+.ntfy-panel .nt{font-weight:700;font-size:11px;color:var(--integration);margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.ntfy-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;}
+.ntfy-cell{background:#fff;border:1px solid rgba(231,21,123,.2);border-radius:6px;padding:4px 7px;font-size:9px;color:var(--text);}
+.ntfy-cell .l{font-weight:700;font-size:9px;color:var(--integration);margin-bottom:1px;display:flex;align-items:center;gap:3px;}
+
+/* ── Governance panel ── */
+.gov-panel{background:rgba(11,114,133,.05);border:2px solid rgba(11,114,133,.25);border-radius:10px;padding:6px 12px;margin-bottom:6px;}
+.gov-panel .gt{font-weight:700;font-size:10px;color:var(--imm-c);display:flex;align-items:center;gap:5px;}
+.gov-panel .gd{font-size:9px;color:var(--text2);margin-top:2px;}
+
+/* ── Consumer panel ── */
+.cons-panel{background:rgba(0,115,187,.05);border:2px solid rgba(0,115,187,.2);border-radius:10px;padding:6px 12px;}
+.cons-panel .ct{font-weight:700;font-size:10px;color:var(--standby);}
+.cons-panel .cd{font-size:9px;color:var(--text2);}
+
+/* ── Private Listing bridge ── */
+.pl-bridge{background:rgba(237,113,0,.06);border:2px dashed rgba(237,113,0,.4);border-radius:10px;padding:7px 12px;margin:6px 0;text-align:center;font-size:11px;font-weight:700;color:var(--compute);}
+.pl-bridge span{font-weight:400;font-size:9px;color:var(--text2);}
+
+/* ── Flow arrows ── */
+.fa{text-align:center;font-size:14px;color:var(--text3);margin:3px 0;line-height:1;}
+.fl{text-align:center;font-size:8px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:1px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.badge.active{background:var(--active-bg);color:var(--active);border:1px solid rgba(29,129,2,.3);}
+.badge.standby{background:var(--standby-bg);color:var(--standby);border:1px solid rgba(0,115,187,.3);}
+.badge.flip{background:var(--active-bg);color:var(--active);border:1px solid rgba(29,129,2,.3);}
+.badge.noflip{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(209,50,18,.3);}
+
+/* ── Sync bar ── */
+.sync-bar{background:var(--sync-bg);border:2px solid var(--sync-bdr);border-radius:10px;padding:10px 16px;margin:8px 0;}
+.sync-bar .sbt{font-weight:700;font-size:12px;color:var(--sync);margin-bottom:6px;}
+.sync-items{display:flex;flex-wrap:wrap;gap:6px;}
+.sync-item{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--sync-bdr);border-radius:5px;padding:4px 10px;font-size:10px;font-weight:600;color:var(--sync);}
+
+/* ── Callouts ── */
+.co{border-radius:8px;padding:10px 14px;font-size:11px;margin:6px 0;border-left:4px solid;}
+.co strong{font-weight:700;}
+.co.warn{background:var(--warn-bg);border-color:var(--aws-or);color:#8C6A0A;}
+.co.info{background:var(--standby-bg);border-color:var(--standby);color:#054B80;}
+.co.ok{background:var(--active-bg);border-color:var(--active);color:#0B4A05;}
+.co.danger{background:var(--danger-bg);border-color:var(--danger);color:#921C0C;}
+
+/* ── Tables ── */
+.tsec{margin-bottom:10px;}
+.tsec h3{font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;color:#fff;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.tsec h3.ph{background:linear-gradient(135deg,var(--database),#6772E5);}
+.tsec h3.prh{background:linear-gradient(135deg,var(--storage),#5CB52E);}
+.tsec h3.ch{background:linear-gradient(135deg,var(--standby),#3498DB);}
+.ttbl{width:100%;border-collapse:collapse;font-size:10px;}
+.ttbl th{background:#F2F3F3;padding:5px 8px;text-align:left;font-weight:700;border-bottom:2px solid var(--border);font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+.ttbl td{padding:4px 8px;border-bottom:1px solid #EAEDED;vertical-align:top;}
+.ttbl tr:hover{background:#F7F8F8;}
+.pc{background:var(--danger-bg);color:var(--danger);font-family:'JetBrains Mono',monospace;font-weight:700;padding:1px 6px;border-radius:4px;font-size:8px;}
+.ph-p{background:var(--warn-bg);color:var(--warn);font-family:'JetBrains Mono',monospace;font-weight:700;padding:1px 6px;border-radius:4px;font-size:8px;}
+.pm{background:var(--standby-bg);color:var(--standby);font-family:'JetBrains Mono',monospace;font-weight:700;padding:1px 6px;border-radius:4px;font-size:8px;}
+
+/* ── Layout ── */
+.tcols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.tcols2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* ── Comparison table ── */
+.ctbl{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px;}
+.ctbl th{background:var(--aws);color:#fff;padding:6px 10px;text-align:left;font-size:9px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.3px;}
+.ctbl td{padding:5px 10px;border-bottom:1px solid var(--border);}
+.ctbl tr:nth-child(even){background:#F7F8F8;}
+.chk{color:var(--active);font-weight:700;}
+.crs{color:var(--danger);font-weight:700;}
+.wrn{color:var(--warn);font-weight:700;}
+
+/* ── Sequence steps ── */
+.seq-step{display:flex;gap:10px;margin-bottom:5px;align-items:flex-start;}
+.seq-num{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;color:#fff;background:var(--aws);}
+.seq-content{flex:1;background:#F7F8F8;border:1px solid var(--border);border-radius:8px;padding:8px 12px;}
+.seq-content .st{font-weight:700;font-size:12px;color:var(--aws);margin-bottom:2px;display:flex;align-items:center;gap:5px;}
+.seq-content .sd{font-size:9px;color:var(--text2);line-height:1.45;}
+.seq-time{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--text3);font-weight:600;margin-top:3px;}
+
+/* ── Phase boxes ── */
+.phase-box{border-radius:10px;padding:12px;text-align:center;border:2px solid var(--border);position:relative;overflow:hidden;background:#fff;}
+.phase-box .ph-label{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+.phase-box .ph-title{font-size:14px;font-weight:800;color:var(--aws);margin:2px 0;}
+.phase-box .ph-weeks{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text2);}
+.phase-box .ph-detail{font-size:8px;color:var(--text3);margin-top:4px;line-height:1.35;}
+
+/* ── Metric cards ── */
+.metric-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+.metric-card .mv{font-size:32px;font-weight:800;line-height:1;}
+.metric-card .ml{font-size:10px;color:var(--text3);margin-top:4px;font-family:'JetBrains Mono',monospace;}
+
+/* ── Blocker rows ── */
+.blocker-row{padding:8px 12px;border-radius:8px;margin-bottom:5px;display:flex;gap:10px;align-items:flex-start;border-left:4px solid;}
+.blocker-row.crit{background:var(--danger-bg);border-color:var(--danger);}
+.blocker-row.high{background:var(--warn-bg);border-color:var(--aws-or);}
+.blocker-id{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;flex-shrink:0;}
+.blocker-row.crit .blocker-id{color:var(--danger);}
+.blocker-row.high .blocker-id{color:var(--warn);}
+.blocker-text{font-size:10px;color:var(--text);flex:1;line-height:1.4;}
+.blocker-owner{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--text3);flex-shrink:0;}
+
+/* ── Navigation ── */
+.nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:3px;z-index:100;background:var(--aws);border-radius:12px;padding:6px 8px;box-shadow:0 4px 20px rgba(0,0,0,.3);}
+.nav button{width:36px;height:28px;border:1px solid rgba(255,255,255,.15);border-radius:6px;background:transparent;color:rgba(255,255,255,.7);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;transition:all .2s;}
+.nav button:hover{background:rgba(255,255,255,.15);color:#fff;border-color:var(--aws-or);}
+</style>
+</head>
+<body>
+
+<!-- ═══ AWS Service Icon Definitions ═══ -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <symbol id="i-s3" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#3F8624"/><ellipse cx="20" cy="15" rx="8" ry="3.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 15v11c0 2.8 3.6 4.5 8 4.5s8-1.7 8-4.5V15" fill="none" stroke="#fff" stroke-width="2.2"/></symbol>
+  <symbol id="i-lam" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#ED7100"/><text x="20" y="30" fill="#fff" font-size="26" font-weight="bold" text-anchor="middle" font-family="Georgia,serif">&#x03BB;</text></symbol>
+  <symbol id="i-ddb" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#4053D6"/><rect x="11" y="11" width="18" height="18" rx="2" fill="none" stroke="#fff" stroke-width="2"/><line x1="11" y1="17.5" x2="29" y2="17.5" stroke="#fff" stroke-width="1.8"/><line x1="11" y1="23.5" x2="29" y2="23.5" stroke="#fff" stroke-width="1.8"/></symbol>
+  <symbol id="i-ecs" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#ED7100"/><rect x="11" y="11" width="7.5" height="7.5" rx="1.5" fill="none" stroke="#fff" stroke-width="2"/><rect x="21.5" y="11" width="7.5" height="7.5" rx="1.5" fill="none" stroke="#fff" stroke-width="2"/><rect x="11" y="21.5" width="7.5" height="7.5" rx="1.5" fill="none" stroke="#fff" stroke-width="2"/><rect x="21.5" y="21.5" width="7.5" height="7.5" rx="1.5" fill="none" stroke="#fff" stroke-width="2"/></symbol>
+  <symbol id="i-alb" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#8C4FFF"/><circle cx="20" cy="12" r="3.5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="28" r="3.5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="28" cy="28" r="3.5" fill="none" stroke="#fff" stroke-width="2"/><line x1="18" y1="15" x2="14" y2="25" stroke="#fff" stroke-width="1.8"/><line x1="22" y1="15" x2="26" y2="25" stroke="#fff" stroke-width="1.8"/></symbol>
+  <symbol id="i-r53" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#8C4FFF"/><circle cx="20" cy="20" r="10" fill="none" stroke="#fff" stroke-width="2"/><text x="20" y="25" fill="#fff" font-size="14" font-weight="bold" text-anchor="middle" font-family="sans-serif">53</text></symbol>
+  <symbol id="i-sns" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#E7157B"/><rect x="11" y="13" width="18" height="14" rx="2" fill="none" stroke="#fff" stroke-width="2"/><path d="M11 15l9 6 9-6" fill="none" stroke="#fff" stroke-width="2"/></symbol>
+  <symbol id="i-sqs" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#E7157B"/><line x1="11" y1="15" x2="25" y2="15" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><line x1="11" y1="20" x2="25" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><line x1="11" y1="25" x2="25" y2="25" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><path d="M27 15l3 5-3 5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-vpc" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#8C4FFF"/><rect x="10" y="10" width="20" height="20" rx="4" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 3"/></symbol>
+  <symbol id="i-glue" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#8C4FFF"/><rect x="10" y="14" width="8" height="12" rx="2" fill="none" stroke="#fff" stroke-width="2"/><rect x="22" y="14" width="8" height="12" rx="2" fill="none" stroke="#fff" stroke-width="2"/><path d="M18 20h4" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-ecr" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#ED7100"/><rect x="12" y="12" width="16" height="16" rx="3" fill="none" stroke="#fff" stroke-width="2"/><circle cx="20" cy="20" r="4" fill="none" stroke="#fff" stroke-width="2"/></symbol>
+  <symbol id="i-dx" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#8C4FFF"/><circle cx="12" cy="20" r="4" fill="none" stroke="#fff" stroke-width="2"/><circle cx="28" cy="20" r="4" fill="none" stroke="#fff" stroke-width="2"/><line x1="16" y1="20" x2="24" y2="20" stroke="#fff" stroke-width="2.5"/></symbol>
+  <symbol id="i-cw" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#E7157B"/><circle cx="20" cy="20" r="9" fill="none" stroke="#fff" stroke-width="2"/><path d="M20 14v7l4 3" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-sf" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#29B5E8"/><path d="M20 8v24M10 14l20 12M30 14l-20 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><circle cx="20" cy="8" r="2" fill="#fff"/><circle cx="20" cy="32" r="2" fill="#fff"/><circle cx="10" cy="14" r="2" fill="#fff"/><circle cx="30" cy="26" r="2" fill="#fff"/><circle cx="30" cy="14" r="2" fill="#fff"/><circle cx="10" cy="26" r="2" fill="#fff"/></symbol>
+  <symbol id="i-sb" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#4695EB"/><polygon points="20,9 23,17 31,17 25,22 27,30 20,25 13,30 15,22 9,17 17,17" fill="#fff"/></symbol>
+  <symbol id="i-dbx" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#FF3621"/><path d="M20 10l9 7-9 6-9-6z" fill="none" stroke="#fff" stroke-width="2"/><path d="M11 23l9 6 9-6" fill="none" stroke="#fff" stroke-width="2"/><path d="M11 17l9 6 9-6" fill="none" stroke="#fff" stroke-width="1.5"/></symbol>
+  <symbol id="i-imm" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#0B7285"/><path d="M20 9l9 5v8c0 5-4.5 8.5-9 11-4.5-2.5-9-6-9-11v-8z" fill="none" stroke="#fff" stroke-width="2"/><path d="M16 20l3 3 5-6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-kafka" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#231F20"/><circle cx="24" cy="14" r="3.5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="24" cy="26" r="3.5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="14" cy="20" r="3.5" fill="none" stroke="#fff" stroke-width="2"/><line x1="17" y1="18" x2="21" y2="16" stroke="#fff" stroke-width="2"/><line x1="17" y1="22" x2="21" y2="24" stroke="#fff" stroke-width="2"/></symbol>
+</defs>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 1: CURRENT ARCHITECTURE                              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s1">
+<div class="s-hdr">
+  <div><h1>Current Architecture</h1><div class="sub">All components in us-east-1 only &mdash; single region, no DR capability</div></div>
+  <div class="s-num">01 / 07</div>
+</div>
+<div class="s-body">
+
+<div class="legend">
+  <span><svg class="ic" width="18" height="18"><use href="#i-s3"/></svg> Producers (S3)</span>
+  <span><svg class="ic" width="18" height="18"><use href="#i-ecs"/></svg><svg class="ic" width="18" height="18"><use href="#i-lam"/></svg><svg class="ic" width="18" height="18"><use href="#i-ddb"/></svg> Data Mesh Platform</span>
+  <span><svg class="ic" width="18" height="18"><use href="#i-sf"/></svg><svg class="ic" width="18" height="18"><use href="#i-sb"/></svg><svg class="ic" width="18" height="18"><use href="#i-dbx"/></svg> Compute Platforms</span>
+  <span><svg class="ic" width="18" height="18"><use href="#i-imm"/></svg> Governance (Immuta)</span>
+  <span><svg class="ic" width="18" height="18"><use href="#i-sns"/></svg><svg class="ic" width="18" height="18"><use href="#i-sqs"/></svg> Consumer Notifications</span>
+  <span><svg class="ic" width="18" height="18"><use href="#i-sqs"/></svg> Consumers</span>
+</div>
+
+<div class="region east" style="max-width:100%;border-color:var(--east-bdr);">
+  <div class="rlabel east">us-east-1 (N. VIRGINIA) &mdash; ALL COMPONENTS</div>
+  <div class="rstatus active">PRODUCTION</div>
+
+  <div class="rsec" style="margin-top:8px;">
+    <div class="rsec-label">Producers (each in own AWS account)</div>
+    <div class="rsec-row">
+      <div class="cbox prod"><svg class="ic" width="24" height="24"><use href="#i-s3"/></svg><div><div class="t">Producer A</div><div class="d">S3 (Parquet)<br>us-east-1</div></div></div>
+      <div class="cbox prod"><svg class="ic" width="24" height="24"><use href="#i-s3"/></svg><div><div class="t">Producer B</div><div class="d">S3 (Iceberg)<br>us-east-1</div></div></div>
+      <div class="cbox prod"><svg class="ic" width="24" height="24"><use href="#i-s3"/></svg><div><div class="t">Producer C</div><div class="d">S3 (Parquet)<br>us-east-1</div></div></div>
+      <div class="cbox prod" style="opacity:.45"><svg class="ic" width="24" height="24"><use href="#i-s3"/></svg><div><div class="t">Producer N...</div><div class="d">S3<br>us-east-1</div></div></div>
+    </div>
+  </div>
+  <div class="fa">&darr;</div>
+  <div class="fl">Register Dataset / Notify "New Data Available"</div>
+
+  <div class="plat-panel">
+    <div class="pt"><svg class="ic" width="20" height="20"><use href="#i-ecs"/></svg> Data Mesh Platform <span class="mono" style="font-size:9px;color:var(--text3);">(Platform AWS Account, us-east-1)</span></div>
+    <div class="plat-grid">
+      <div class="plat-cell"><div class="icons"><svg class="ic" width="16" height="16"><use href="#i-r53"/></svg><svg class="ic" width="16" height="16"><use href="#i-alb"/></svg><svg class="ic" width="16" height="16"><use href="#i-ecs"/></svg></div><div class="l">Registration APIs</div>Route53 &rarr; ALB &rarr; ECS Services</div>
+      <div class="plat-cell"><div class="icons"><svg class="ic" width="16" height="16"><use href="#i-lam"/></svg></div><div class="l">Producer Notification API</div>Lambda &mdash; receives "new data" from producers<br>Writes DynamoDB, updates Glue Catalog</div>
+      <div class="plat-cell"><div class="icons"><svg class="ic" width="16" height="16"><use href="#i-lam"/></svg><svg class="ic" width="16" height="16"><use href="#i-sns"/></svg><svg class="ic" width="16" height="16"><use href="#i-sqs"/></svg></div><div class="l">Consumer Notification API</div>Lambda &mdash; publishes SNS &rarr; SQS<br>Pushes to On-Prem Kafka via DX/VPN<br>Stores in DynamoDB for polling</div>
+      <div class="plat-cell"><div class="icons"><svg class="ic" width="16" height="16"><use href="#i-ddb"/></svg><svg class="ic" width="16" height="16"><use href="#i-sns"/></svg><svg class="ic" width="16" height="16"><use href="#i-glue"/></svg><svg class="ic" width="16" height="16"><use href="#i-vpc"/></svg></div><div class="l">Infrastructure</div>DynamoDB (Metadata) &bull; SNS Topic<br>Glue Catalog &bull; S3 VPC Endpoint<br>Notification Polling API (ECS+DDB)</div>
+    </div>
+  </div>
+  <div class="fa">&darr;</div>
+  <div class="fl"><svg class="ic" width="12" height="12"><use href="#i-vpc"/></svg> S3 VPC Gateway Endpoint &rarr; Producer S3 Buckets</div>
+
+  <div class="rsec">
+    <div class="rsec-label">Compute Platforms</div>
+    <div class="rsec-row">
+      <div class="cbox comp" style="min-width:190px"><svg class="ic" width="24" height="24"><use href="#i-sf"/></svg><div><div class="t">Snowflake (us-east-1)</div><div class="d">External Tables (Parquet)<br>Unmanaged Iceberg Tables<br>Storage Integrations &rarr; east1 S3</div></div></div>
+      <div class="cbox comp" style="min-width:190px"><svg class="ic" width="24" height="24"><use href="#i-sb"/></svg><div><div class="t">Starburst (us-east-1)</div><div class="d">Glue Catalog as Metastore<br>S3 Access Point Aliases<br>VPC Gateway Endpoint</div></div></div>
+      <div class="cbox comp" style="min-width:190px"><svg class="ic" width="24" height="24"><use href="#i-dbx"/></svg><div><div class="t">Databricks (us-east-1)</div><div class="d">External Tables<br>Unity Catalog Metastore<br>IAM Roles &rarr; east1 S3</div></div></div>
+    </div>
+  </div>
+
+  <div class="gov-panel">
+    <div class="gt"><svg class="ic" width="20" height="20"><use href="#i-imm"/></svg> Immuta Governance <span style="font-weight:400;color:var(--text3);font-size:9px;">(Governance Team Account, us-east-1)</span></div>
+    <div class="gd"><strong style="color:var(--sb-c)"><svg class="ic" width="12" height="12"><use href="#i-sb"/></svg> Starburst:</strong> Runtime API calls (hard dependency) &bull; <strong style="color:var(--sf-c)"><svg class="ic" width="12" height="12"><use href="#i-sf"/></svg> Snowflake:</strong> Native policy sync &bull; <strong style="color:var(--dbx-c)"><svg class="ic" width="12" height="12"><use href="#i-dbx"/></svg> Databricks:</strong> Native policy sync</div>
+  </div>
+
+  <div class="ntfy-panel">
+    <div class="nt"><svg class="ic" width="18" height="18"><use href="#i-sns"/></svg> Consumer Notification Layer <span style="font-weight:400;color:var(--text3);font-size:9px;">(us-east-1)</span></div>
+    <div class="ntfy-grid">
+      <div class="ntfy-cell"><div class="l"><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg><svg class="ic" width="14" height="14"><use href="#i-sqs"/></svg> Ch 1: SNS &rarr; SQS</div>Platform SNS &darr; Consumer SQS<br>(consumer accounts, east1)<br><em>Consumer polls SQS</em></div>
+      <div class="ntfy-cell"><div class="l"><svg class="ic" width="14" height="14"><use href="#i-kafka"/></svg><svg class="ic" width="14" height="14"><use href="#i-dx"/></svg> Ch 2: On-Prem Kafka</div>Lambda/ECS pushes to Kafka<br>via Direct Connect/VPN (east1)<br><em>On-prem apps consume</em></div>
+      <div class="ntfy-cell"><div class="l"><svg class="ic" width="14" height="14"><use href="#i-ecs"/></svg><svg class="ic" width="14" height="14"><use href="#i-ddb"/></svg> Ch 3: Polling API</div>REST API (ECS + DynamoDB)<br>Consumer polls for notifications<br><em>Most resilient channel</em></div>
+    </div>
+  </div>
+
+  <div class="cons-panel">
+    <div class="ct">Consumers (us-east-1)</div>
+    <div class="cd">Query via <svg class="ic" width="12" height="12"><use href="#i-sf"/></svg> Snowflake / <svg class="ic" width="12" height="12"><use href="#i-sb"/></svg> Starburst / <svg class="ic" width="12" height="12"><use href="#i-dbx"/></svg> Databricks &bull; Notified via SNS-SQS / Kafka / Polling API &bull; SQS in consumer AWS accounts (east1)</div>
+  </div>
+</div>
+
+<div class="co danger" style="margin-top:10px;">
+  <strong>&#x26A0; Single Point of Failure:</strong> A full us-east-1 outage renders the entire platform unavailable &mdash; APIs, compute, governance, notifications, all consumer queries. Historical: us-east-1 outages in 2017, 2020, 2021, 2023.
+</div>
+</div>
+<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 2: IDEAL ARCHITECTURE                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+<div class="s-hdr">
+  <div><h1>Ideal State &mdash; Proposed Architecture</h1><div class="sub">Both regions fully provisioned: us-east-1 (Production) + us-west-2 (DR Warm Standby)</div></div>
+  <div class="s-num">02 / 07</div>
+</div>
+<div class="s-body">
+
+<div class="legend">
+  <span><span class="badge active">ACTIVE</span> Production</span>
+  <span><span class="badge standby">STANDBY</span> DR Ready</span>
+  <span style="color:var(--aws-or);font-weight:700;font-size:12px;">&#x25B6;&#x25B6;</span> <span>Cross-region sync (always active)</span>
+  <span style="color:var(--text2);">All producers, platform, consumers have infra in <strong>both</strong> regions</span>
+</div>
+
+<div class="two-region">
+  <!-- ── LEFT: us-east-1 ── -->
+  <div class="region east">
+    <div class="rlabel east">us-east-1 (N. VIRGINIA)</div>
+    <div class="rstatus active">PRIMARY / PRODUCTION</div>
+
+    <div class="rsec" style="margin-top:8px;">
+      <div class="rsec-label"><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> Producers &mdash; Active Write</div>
+      <div class="rsec-row">
+        <div class="cbox prod"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod A</div><div class="d">S3 east1<br><strong>PRIMARY WRITE</strong></div></div></div>
+        <div class="cbox prod"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod B</div><div class="d">S3 east1<br><strong>PRIMARY WRITE</strong></div></div></div>
+        <div class="cbox prod"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod C</div><div class="d">S3 east1<br><strong>PRIMARY WRITE</strong></div></div></div>
+      </div>
+    </div>
+    <div class="fa">&darr;</div>
+
+    <div class="plat-panel">
+      <div class="pt">Platform <span class="badge active">ACTIVE</span></div>
+      <div class="plat-grid">
+        <div class="plat-cell"><div class="icons"><svg class="ic" width="14" height="14"><use href="#i-r53"/></svg><svg class="ic" width="14" height="14"><use href="#i-alb"/></svg><svg class="ic" width="14" height="14"><use href="#i-ecs"/></svg></div><div class="l">Registration API</div>ECS/ALB <span class="badge active">ACTIVE</span></div>
+        <div class="plat-cell"><div class="icons"><svg class="ic" width="14" height="14"><use href="#i-lam"/></svg></div><div class="l">Producer Notif API</div>Lambda <span class="badge active">ACTIVE</span></div>
+        <div class="plat-cell"><div class="icons"><svg class="ic" width="14" height="14"><use href="#i-lam"/></svg><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg></div><div class="l">Consumer Notif API</div>Lambda <span class="badge active">ACTIVE</span><br>Publishes to <strong>BOTH</strong> SNS topics</div>
+        <div class="plat-cell"><div class="icons"><svg class="ic" width="14" height="14"><use href="#i-ddb"/></svg><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg><svg class="ic" width="14" height="14"><use href="#i-glue"/></svg></div><div class="l">Infrastructure</div>DynamoDB <strong>PRIMARY WRT</strong><br>SNS &bull; Glue &bull; Polling API</div>
+      </div>
+    </div>
+    <div class="fa">&darr;</div>
+
+    <div class="rsec">
+      <div class="rsec-label">Compute Platforms <span class="badge active">ACTIVE</span></div>
+      <div class="rsec-row">
+        <div class="cbox comp"><svg class="ic" width="20" height="20"><use href="#i-sf"/></svg><div><div class="t">Snowflake</div><div class="d">ExtTbl, Iceberg<br>Storage Integ.</div></div></div>
+        <div class="cbox comp"><svg class="ic" width="20" height="20"><use href="#i-sb"/></svg><div><div class="t">Starburst</div><div class="d">Glue, S3 AccPt<br>VPC Endpoint</div></div></div>
+        <div class="cbox comp"><svg class="ic" width="20" height="20"><use href="#i-dbx"/></svg><div><div class="t">Databricks</div><div class="d">ExtTbl, Unity<br>Catalog</div></div></div>
+      </div>
+    </div>
+    <div class="fl"><svg class="ic" width="12" height="12"><use href="#i-vpc"/></svg> S3 VPC Gateway Endpoint &rarr; Producer S3 Buckets (east1)</div>
+
+    <div class="gov-panel"><div class="gt"><svg class="ic" width="16" height="16"><use href="#i-imm"/></svg> Immuta <span class="badge active">ACTIVE</span></div><div class="gd">SB runtime &bull; SF sync &bull; DBX sync</div></div>
+
+    <div class="ntfy-panel">
+      <div class="nt"><svg class="ic" width="16" height="16"><use href="#i-sns"/></svg> Consumer Notifications <span class="badge active">ACTIVE</span></div>
+      <div class="ntfy-grid">
+        <div class="ntfy-cell"><div class="l"><svg class="ic" width="12" height="12"><use href="#i-sns"/></svg><svg class="ic" width="12" height="12"><use href="#i-sqs"/></svg> SNS&rarr;SQS</div>Consumers poll east1 SQS</div>
+        <div class="ntfy-cell"><div class="l"><svg class="ic" width="12" height="12"><use href="#i-kafka"/></svg> Kafka</div>via east1 DX/VPN</div>
+        <div class="ntfy-cell"><div class="l"><svg class="ic" width="12" height="12"><use href="#i-ecs"/></svg> Poll API</div>ECS + DynamoDB</div>
+      </div>
+    </div>
+
+    <div class="cons-panel"><div class="ct">Consumers <span class="badge active">ACTIVE</span></div><div class="cd">SQS east1 &bull; Query SF/SB/DBX east1 &bull; Use CNAME</div></div>
+  </div>
+
+  <!-- ── CENTER: Sync arrows with icons ── -->
+  <div class="sync-col">
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg>S3 CRR</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+    <div style="height:8px"></div>
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-ddb"/></svg>DynamoDB<br>Global Tbl</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+    <div style="height:4px"></div>
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-glue"/></svg>Glue<br>Dual-Wrt</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+    <div style="height:4px"></div>
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg>SNS<br>Dual-Pub</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+    <div style="height:4px"></div>
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-imm"/></svg>Immuta<br>Policy<br>as-Code</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+    <div style="height:4px"></div>
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-r53"/></svg>Route53<br>Failover</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+  </div>
+
+  <!-- ── RIGHT: us-west-2 ── -->
+  <div class="region west">
+    <div class="rlabel west">us-west-2 (OREGON)</div>
+    <div class="rstatus standby">SECONDARY / DR</div>
+
+    <div class="rsec" style="margin-top:8px;">
+      <div class="rsec-label"><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> Producer S3 Replicas</div>
+      <div class="rsec-row">
+        <div class="cbox prod" style="opacity:.6"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod A</div><div class="d">S3 west2<br><strong>REPLICA</strong> (CRR)</div></div></div>
+        <div class="cbox prod" style="opacity:.6"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod B</div><div class="d">S3 west2<br><strong>REPLICA</strong> (CRR)</div></div></div>
+        <div class="cbox prod" style="opacity:.6"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod C</div><div class="d">S3 west2<br><strong>REPLICA</strong> (CRR)</div></div></div>
+      </div>
+    </div>
+    <div class="fa" style="opacity:.4">&darr;</div>
+
+    <div class="plat-panel" style="opacity:.8">
+      <div class="pt">Platform <span class="badge standby">WARM STANDBY</span></div>
+      <div class="plat-grid">
+        <div class="plat-cell"><div class="icons"><svg class="ic" width="14" height="14"><use href="#i-r53"/></svg><svg class="ic" width="14" height="14"><use href="#i-alb"/></svg><svg class="ic" width="14" height="14"><use href="#i-ecs"/></svg></div><div class="l">Registration API</div>ECS/ALB <span class="badge standby">STBY</span><br>min task count</div>
+        <div class="plat-cell"><div class="icons"><svg class="ic" width="14" height="14"><use href="#i-lam"/></svg></div><div class="l">Producer Notif API</div>Lambda <span class="badge standby">DEPLOYED</span></div>
+        <div class="plat-cell"><div class="icons"><svg class="ic" width="14" height="14"><use href="#i-lam"/></svg><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg></div><div class="l">Consumer Notif API</div>Lambda <span class="badge standby">DEPLOYED</span><br>SNS west2 receives dual-pub</div>
+        <div class="plat-cell"><div class="icons"><svg class="ic" width="14" height="14"><use href="#i-ddb"/></svg><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg><svg class="ic" width="14" height="14"><use href="#i-glue"/></svg></div><div class="l">Infrastructure</div>DynamoDB <strong>REPLICA (RO)</strong><br>SNS &bull; Glue &bull; Polling API</div>
+      </div>
+    </div>
+    <div class="fa" style="opacity:.4">&darr;</div>
+
+    <div class="rsec">
+      <div class="rsec-label">Compute Platforms <span class="badge standby">WARM STANDBY</span></div>
+      <div class="rsec-row">
+        <div class="cbox comp" style="opacity:.6"><svg class="ic" width="20" height="20"><use href="#i-sf"/></svg><div><div class="t">Snowflake</div><div class="d">ExtTbl, Iceberg<br>Storage Integ.</div></div></div>
+        <div class="cbox comp" style="opacity:.6"><svg class="ic" width="20" height="20"><use href="#i-sb"/></svg><div><div class="t">Starburst</div><div class="d">Glue, S3 AccPt<br>VPC Endpt, min wkrs</div></div></div>
+        <div class="cbox comp" style="opacity:.6"><svg class="ic" width="20" height="20"><use href="#i-dbx"/></svg><div><div class="t">Databricks</div><div class="d">ExtTbl, Unity<br>Catalog</div></div></div>
+      </div>
+    </div>
+    <div class="fl" style="opacity:.5;"><svg class="ic" width="12" height="12"><use href="#i-vpc"/></svg> S3 VPC Gateway Endpoint &rarr; Producer S3 Buckets (west2)</div>
+
+    <div class="gov-panel" style="opacity:.8"><div class="gt"><svg class="ic" width="16" height="16"><use href="#i-imm"/></svg> Immuta <span class="badge standby">STANDBY</span></div><div class="gd">Policies synced via CI/CD</div></div>
+
+    <div class="ntfy-panel" style="opacity:.8">
+      <div class="nt"><svg class="ic" width="16" height="16"><use href="#i-sns"/></svg> Consumer Notifications <span class="badge standby">STANDBY</span></div>
+      <div class="ntfy-grid">
+        <div class="ntfy-cell"><div class="l"><svg class="ic" width="12" height="12"><use href="#i-sqs"/></svg> SNS&rarr;SQS</div>west2 SQS pre-created</div>
+        <div class="ntfy-cell"><div class="l"><svg class="ic" width="12" height="12"><use href="#i-kafka"/></svg> Kafka</div>via west2 DX (pre-prov)</div>
+        <div class="ntfy-cell"><div class="l"><svg class="ic" width="12" height="12"><use href="#i-ecs"/></svg> Poll API</div>ECS+DDB (standby)</div>
+      </div>
+    </div>
+
+    <div class="cons-panel" style="opacity:.8"><div class="ct">Consumers <span class="badge standby">READY</span></div><div class="cd">SQS west2 pre-created &bull; Same CNAME endpoints &bull; Ready to switch</div></div>
+  </div>
+</div>
+
+<div class="sync-bar">
+  <div class="sbt">Cross-Region Synchronization (Always Active During Normal Operations)</div>
+  <div class="sync-items">
+    <div class="sync-item"><svg class="ic" width="16" height="16"><use href="#i-s3"/></svg> S3 CRR east1&rarr;west2 (15-min SLA via RTC)</div>
+    <div class="sync-item"><svg class="ic" width="16" height="16"><use href="#i-ddb"/></svg> DynamoDB Global Tables (~2s lag)</div>
+    <div class="sync-item"><svg class="ic" width="16" height="16"><use href="#i-glue"/></svg> Glue Catalog Dual-Write</div>
+    <div class="sync-item"><svg class="ic" width="16" height="16"><use href="#i-sns"/></svg> SNS Dual-Publish (both topics)</div>
+    <div class="sync-item"><svg class="ic" width="16" height="16"><use href="#i-r53"/></svg> Route53 Failover Routing</div>
+    <div class="sync-item"><svg class="ic" width="16" height="16"><use href="#i-ecr"/></svg> ECR Cross-Region Replication</div>
+    <div class="sync-item"><svg class="ic" width="16" height="16"><use href="#i-imm"/></svg> Immuta Policy-as-Code CI/CD</div>
+    <div class="sync-item"><svg class="ic" width="16" height="16"><use href="#i-sf"/></svg> Snowflake Account Replication</div>
+  </div>
+</div>
+
+<div class="co ok">
+  <strong>During DR Flip:</strong> Producers reverse CRR (west2&rarr;east1), write to west2. Platform activates west2 infra. Consumers switch to west2 endpoints. Iceberg path problem eliminated (native west2 paths after flip). <strong>RPO &le; 15 min &bull; RTO 45-60 min.</strong>
+</div>
+</div>
+<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: TASKS FOR IDEAL STATE                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s3">
+<div class="s-hdr">
+  <div><h1>Tasks Required &mdash; Ideal State</h1><div class="sub">Work by Data Mesh Platform, Producers, and Consumers to achieve full dual-region readiness</div></div>
+  <div class="s-num">03 / 07</div>
+</div>
+<div class="s-body">
+<div class="tcols">
+  <div class="tsec">
+    <h3 class="ph"><svg class="ic" width="18" height="18"><use href="#i-ecs"/></svg> Data Mesh Platform Team</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td><svg class="ic" width="14" height="14"><use href="#i-vpc"/></svg> Create VPC, subnets, S3 VPC Endpoint in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td><svg class="ic" width="14" height="14"><use href="#i-ecs"/></svg> Deploy ECS Registration APIs in west2 (warm standby)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td><svg class="ic" width="14" height="14"><use href="#i-lam"/></svg> Deploy Producer Notification API (Lambda) in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td><svg class="ic" width="14" height="14"><use href="#i-lam"/></svg> Deploy Consumer Notification API (Lambda) in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>5</td><td><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg> Create SNS topic in west2 + cross-account subs</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>6</td><td><svg class="ic" width="14" height="14"><use href="#i-ddb"/></svg> Configure DynamoDB Global Tables (add west2 replica)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>7</td><td><svg class="ic" width="14" height="14"><use href="#i-lam"/></svg> Deploy all Lambda functions in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>8</td><td><svg class="ic" width="14" height="14"><use href="#i-glue"/></svg> Set up Glue Catalog in west2 + Lake Formation perms</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>8a</td><td><svg class="ic" width="14" height="14"><use href="#i-glue"/></svg> Modify Notification Lambda for Glue dual-write (code change)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>9</td><td><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg> Implement SNS dual-publish (both east1 + west2 topics)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>10</td><td><svg class="ic" width="14" height="14"><use href="#i-r53"/></svg> Configure Route53 failover routing + health checks</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>11</td><td><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg> Provision Snowflake account in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>12</td><td><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg> Build external table / Iceberg recreation automation</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>13</td><td><svg class="ic" width="14" height="14"><use href="#i-sb"/></svg> Deploy Starburst cluster in west2 (warm standby)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>14</td><td><svg class="ic" width="14" height="14"><use href="#i-dbx"/></svg> Deploy Databricks workspace in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>15</td><td><svg class="ic" width="14" height="14"><use href="#i-imm"/></svg> Deploy Immuta in west2 + Policy-as-Code CI/CD</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>16</td><td><svg class="ic" width="14" height="14"><use href="#i-dx"/></svg> Provision Direct Connect / VPN from west2 to on-prem</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>17</td><td>Build self-service producer onboarding toolkit</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>18</td><td><svg class="ic" width="14" height="14"><use href="#i-cw"/></svg> Build monitoring &amp; alerting for west2</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>19</td><td><svg class="ic" width="14" height="14"><use href="#i-ecs"/></svg> Deploy Notification Polling API in west2</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>20</td><td><svg class="ic" width="14" height="14"><use href="#i-ecr"/></svg> ECR cross-region replication</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>21</td><td>Build &amp; test DR flip runbook</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>22</td><td>Decommission plan for east1 standby after failback</td><td><span class="pm">MED</span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="tsec">
+    <h3 class="prh"><svg class="ic" width="18" height="18"><use href="#i-s3"/></svg> Producer Teams</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> Create mirror S3 bucket in us-west-2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> Enable S3 versioning on BOTH buckets</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> Enable S3 CRR: east1&rarr;west2 with RTC (15-min SLA)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td>Grant compute platform IAM roles access to west2 bucket</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>5</td><td><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> Create S3 Access Points on west2 bucket (Starburst)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>6</td><td><svg class="ic" width="14" height="14"><use href="#i-cw"/></svg> Enable Replication Metrics &amp; Monitoring</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>7</td><td>Prepare CRR reversal procedure (west2&rarr;east1)</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>8</td><td>Prepare to switch writes to west2 during DR</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>9</td><td>Validate east1 write &rarr; west2 replica accessible</td><td><span class="ph-p">HIGH</span></td></tr>
+    </tbody></table>
+    <div class="co info" style="margin-top:8px;">
+      <strong>Normal Ops:</strong> Producers write to east1 S3 (primary). CRR replicates to west2 (replica).<br>
+      <strong>During DR Flip:</strong> Producers reverse CRR (west2&rarr;east1) and switch writes to west2 S3.
+    </div>
+  </div>
+
+  <div class="tsec">
+    <h3 class="ch">Consumer Teams</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td><svg class="ic" width="14" height="14"><use href="#i-sqs"/></svg> Create SQS queue in us-west-2 (own account)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg> Subscribe west2 SQS to west2 SNS topic</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td><svg class="ic" width="14" height="14"><use href="#i-r53"/></svg> Use platform CNAME endpoints (not direct URLs)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td><svg class="ic" width="14" height="14"><use href="#i-sqs"/></svg> Prepare to switch polling to west2 SQS during DR</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>5</td><td>Implement idempotent message processing</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>6</td><td><svg class="ic" width="14" height="14"><use href="#i-kafka"/></svg> On-prem Kafka: validate west2 DX path</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>7</td><td>Test end-to-end in west2 during DR drill</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>8</td><td>Document connection failover procedure</td><td><span class="pm">MED</span></td></tr>
+    </tbody></table>
+    <div class="co info" style="margin-top:8px;">
+      <strong>Consumer Connection Strategy:</strong><br>
+      &bull; <strong><svg class="ic" width="12" height="12"><use href="#i-r53"/></svg> CNAME (Recommended):</strong> Platform DNS routes transparently<br>
+      &bull; <strong><svg class="ic" width="12" height="12"><use href="#i-sf"/></svg> Snowflake Client Redirect:</strong> Native (Business Critical ed.)<br>
+      &bull; <strong><svg class="ic" width="12" height="12"><use href="#i-sns"/></svg> Dual-Publish:</strong> Consumers can poll both SQS queues
+    </div>
+    <div class="co warn" style="margin-top:5px;">
+      <strong><svg class="ic" width="12" height="12"><use href="#i-dx"/></svg> DX Lead Time:</strong> Direct Connect / VPN from west2 to on-prem takes 4-8 weeks. Must start in Phase 1.
+    </div>
+  </div>
+</div>
+</div>
+<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 4: HYBRID ARCHITECTURE                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s4">
+<div class="s-hdr">
+  <div><h1>Hybrid State &mdash; Proposed Architecture</h1><div class="sub">Most producers can flip; non-flipping producers use Snowflake Private Listing (SnowGrid)</div></div>
+  <div class="s-num">04 / 07</div>
+</div>
+<div class="s-body">
+
+<div class="legend">
+  <span><span class="badge flip">CAN FLIP</span> Ready for DR</span>
+  <span><span class="badge noflip">CANNOT FLIP</span> Stays in east1</span>
+  <span><svg class="ic" width="18" height="18"><use href="#i-sf"/></svg> Snowflake Private Listing</span>
+  <span style="color:var(--text2);">Identical to Ideal + <strong style="color:var(--compute)">Private Listing bridge</strong> for non-flipped producers</span>
+</div>
+
+<div class="two-region">
+  <!-- ── LEFT: us-east-1 ── -->
+  <div class="region east">
+    <div class="rlabel east">us-east-1 (N. VIRGINIA)</div>
+    <div class="rstatus active">PRIMARY / PRODUCTION</div>
+
+    <div class="rsec" style="margin-top:8px;">
+      <div class="rsec-label">Flipped Producers (can flip to DR)</div>
+      <div class="rsec-row">
+        <div class="cbox prod"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod A <span class="badge flip">FLIP</span></div><div class="d">S3 east1 PRIMARY</div></div></div>
+        <div class="cbox prod"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod B <span class="badge flip">FLIP</span></div><div class="d">S3 east1 PRIMARY</div></div></div>
+      </div>
+    </div>
+    <div class="rsec">
+      <div class="rsec-label" style="color:var(--danger);">Non-Flipped Producers (cannot flip)</div>
+      <div class="rsec-row">
+        <div class="cbox noflip"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod X <span class="badge noflip">NO FLIP</span></div><div class="d">S3 east1 ONLY<br>No CRR to west2</div></div></div>
+        <div class="cbox noflip"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod Y <span class="badge noflip">NO FLIP</span></div><div class="d">S3 east1 ONLY<br>No CRR to west2</div></div></div>
+      </div>
+    </div>
+    <div class="fa">&darr;</div>
+
+    <div class="plat-panel">
+      <div class="pt">Platform <span class="badge active">ACTIVE</span></div>
+      <div style="font-size:9px;color:var(--text2);"><svg class="ic" width="12" height="12"><use href="#i-ecs"/></svg> Registration API &bull; <svg class="ic" width="12" height="12"><use href="#i-lam"/></svg> Producer Notif API &bull; <svg class="ic" width="12" height="12"><use href="#i-lam"/></svg> Consumer Notif API<br><svg class="ic" width="12" height="12"><use href="#i-ddb"/></svg> DynamoDB (PRIMARY WRT) &bull; <svg class="ic" width="12" height="12"><use href="#i-sns"/></svg> SNS &bull; <svg class="ic" width="12" height="12"><use href="#i-glue"/></svg> Glue &bull; Polling API &bull; Lambdas</div>
+    </div>
+    <div class="fa">&darr;</div>
+
+    <div class="rsec">
+      <div class="rsec-label">Compute Platforms <span class="badge active">ACTIVE</span></div>
+      <div class="rsec-row">
+        <div class="cbox comp"><svg class="ic" width="20" height="20"><use href="#i-sf"/></svg><div><div class="t">Snowflake</div><div class="d">ALL data<br>(flipped + non-flipped)</div></div></div>
+        <div class="cbox comp"><svg class="ic" width="20" height="20"><use href="#i-sb"/></svg><div><div class="t">Starburst</div><div class="d">ALL data</div></div></div>
+        <div class="cbox comp"><svg class="ic" width="20" height="20"><use href="#i-dbx"/></svg><div><div class="t">Databricks</div><div class="d">ALL data</div></div></div>
+      </div>
+    </div>
+
+    <div class="pl-bridge" style="margin-top:6px;">
+      <svg class="ic" width="20" height="20"><use href="#i-sf"/></svg> Snowflake east1 &mdash; PROVIDER<br>
+      <span>Unmanaged Iceberg Tables for non-flipped Prod X, Prod Y<br>Private Listing shares this data cross-region to west2 SF &#x25B6;</span>
+    </div>
+
+    <div class="gov-panel"><div class="gt"><svg class="ic" width="16" height="16"><use href="#i-imm"/></svg> Immuta <span class="badge active">ACTIVE</span></div></div>
+    <div class="ntfy-panel" style="padding:5px 10px;"><div class="nt" style="margin-bottom:0;"><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg> Consumer Notifications <span class="badge active">ACTIVE</span></div></div>
+    <div class="cons-panel" style="margin-top:5px;"><div class="ct">Consumers <span class="badge active">ACTIVE</span></div></div>
+  </div>
+
+  <!-- ── CENTER: Sync arrows ── -->
+  <div class="sync-col">
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg>S3 CRR<br>(flipped<br>only)</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+    <div style="height:8px"></div>
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-ddb"/></svg>DDB<br>Glue<br>SNS</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+    <div style="height:8px"></div>
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-imm"/></svg>Immuta<br>Policy</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+    <div style="height:8px"></div>
+    <div class="sync-pill" style="background:rgba(237,113,0,.08);border-color:rgba(237,113,0,.35);"><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg><span style="color:var(--compute);">Private<br>Listing</span></div>
+    <div class="sync-arrow pulse" style="color:var(--compute);">&#x25B6;</div>
+    <div style="height:8px"></div>
+    <div class="sync-pill"><svg class="ic" width="14" height="14"><use href="#i-r53"/></svg>Route53</div>
+    <div class="sync-arrow pulse">&#x25B6;</div>
+  </div>
+
+  <!-- ── RIGHT: us-west-2 ── -->
+  <div class="region west">
+    <div class="rlabel west">us-west-2 (OREGON)</div>
+    <div class="rstatus standby">SECONDARY / DR</div>
+
+    <div class="rsec" style="margin-top:8px;">
+      <div class="rsec-label">Flipped Producer S3 Replicas</div>
+      <div class="rsec-row">
+        <div class="cbox prod" style="opacity:.6"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod A <span class="badge flip">FLIP</span></div><div class="d">S3 west2 REPLICA</div></div></div>
+        <div class="cbox prod" style="opacity:.6"><svg class="ic" width="20" height="20"><use href="#i-s3"/></svg><div><div class="t">Prod B <span class="badge flip">FLIP</span></div><div class="d">S3 west2 REPLICA</div></div></div>
+      </div>
+    </div>
+    <div class="rsec">
+      <div class="rsec-label" style="color:var(--danger);">Non-Flipped &mdash; NO S3 replica in west2</div>
+      <div style="font-size:9px;color:var(--text3);text-align:center;padding:3px;">Prod X, Prod Y data only via <svg class="ic" width="12" height="12"><use href="#i-sf"/></svg> Snowflake Private Listing</div>
+    </div>
+    <div class="fa" style="opacity:.4">&darr;</div>
+
+    <div class="plat-panel" style="opacity:.8">
+      <div class="pt">Platform <span class="badge standby">WARM STANDBY</span></div>
+      <div style="font-size:9px;color:var(--text2);"><svg class="ic" width="12" height="12"><use href="#i-ecs"/></svg> Registration API &bull; <svg class="ic" width="12" height="12"><use href="#i-lam"/></svg> Producer Notif API &bull; <svg class="ic" width="12" height="12"><use href="#i-lam"/></svg> Consumer Notif API<br><svg class="ic" width="12" height="12"><use href="#i-ddb"/></svg> DynamoDB (REPLICA RO) &bull; <svg class="ic" width="12" height="12"><use href="#i-sns"/></svg> SNS &bull; <svg class="ic" width="12" height="12"><use href="#i-glue"/></svg> Glue &bull; Polling API &bull; Lambdas</div>
+    </div>
+    <div class="fa" style="opacity:.4">&darr;</div>
+
+    <div class="rsec">
+      <div class="rsec-label">Compute Platforms <span class="badge standby">WARM STANDBY</span></div>
+      <div class="rsec-row">
+        <div class="cbox comp" style="opacity:.7"><svg class="ic" width="20" height="20"><use href="#i-sf"/></svg><div><div class="t">Snowflake</div><div class="d"><span class="chk">&#10003;</span> Flipped data<br><span class="chk">&#10003;</span> Non-flip via PL</div></div></div>
+        <div class="cbox comp" style="opacity:.7"><svg class="ic" width="20" height="20"><use href="#i-sb"/></svg><div><div class="t">Starburst</div><div class="d"><span class="chk">&#10003;</span> Flipped data<br><span class="crs">&#10007;</span> No non-flip</div></div></div>
+        <div class="cbox comp" style="opacity:.7"><svg class="ic" width="20" height="20"><use href="#i-dbx"/></svg><div><div class="t">Databricks</div><div class="d"><span class="chk">&#10003;</span> Flipped data<br><span class="crs">&#10007;</span> No non-flip</div></div></div>
+      </div>
+    </div>
+
+    <div class="pl-bridge">
+      &#x25C0; <svg class="ic" width="20" height="20"><use href="#i-sf"/></svg> Snowflake west2 &mdash; CONSUMER<br>
+      <span>Receives non-flipped producer data via Private Listing<br>Available as shared database in west2 SF account</span>
+    </div>
+
+    <div class="gov-panel" style="opacity:.8"><div class="gt"><svg class="ic" width="16" height="16"><use href="#i-imm"/></svg> Immuta <span class="badge standby">STANDBY</span></div></div>
+    <div class="ntfy-panel" style="padding:5px 10px;opacity:.8"><div class="nt" style="margin-bottom:0;"><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg> Consumer Notifications <span class="badge standby">STANDBY</span></div></div>
+    <div class="cons-panel" style="margin-top:5px;opacity:.8"><div class="ct">Consumers <span class="badge standby">READY</span></div></div>
+  </div>
+</div>
+
+<div class="co warn" style="margin-top:8px;">
+  <strong>&#x26A0; Hybrid Limitations:</strong>
+  (1) Non-flipped data <strong>only in Snowflake</strong> &mdash; Starburst/Databricks cannot consume Private Listing.
+  (2) If east1 has full outage, Private Listing replication stops &mdash; non-flipped data unavailable.
+  (3) <strong>Must validate</strong> Private Listing + unmanaged Iceberg with Snowflake support (BCR-1528).
+  (4) Validate Immuta governance on Private Listing shared tables.
+</div>
+</div>
+<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 5: TASKS FOR HYBRID STATE                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s5">
+<div class="s-hdr">
+  <div><h1>Tasks Required &mdash; Hybrid State</h1><div class="sub">Additional tasks beyond Ideal State to support non-flipping producers via Snowflake Private Listing</div></div>
+  <div class="s-num">05 / 07</div>
+</div>
+<div class="s-body">
+<div class="co info" style="margin-bottom:10px;">
+  <strong>Prerequisite:</strong> All Ideal State tasks (Slide 3) must be completed first. The tasks below are <strong>additional</strong> work specific to Hybrid.
+</div>
+<div class="tcols2">
+  <div>
+    <div class="tsec">
+      <h3 class="ph"><svg class="ic" width="18" height="18"><use href="#i-sf"/></svg> Platform Team (Additional)</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td>H1</td><td><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg> Maintain Snowflake east1 account as Private Listing provider</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H2</td><td><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg> Set up Snowflake Private Listing / SnowGrid per non-flipped producer</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H3</td><td>Configure east1 SF as provider (share non-flipped tables)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H4</td><td>Configure west2 SF as consumer (subscribe to listings)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H5</td><td><svg class="ic" width="14" height="14"><use href="#i-imm"/></svg> Validate Immuta governance on Private Listing shared tables</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H6</td><td><svg class="ic" width="14" height="14"><use href="#i-r53"/></svg> Ensure non-flipped producers use CNAME for Notif API</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H7</td><td><svg class="ic" width="14" height="14"><use href="#i-cw"/></svg> Build monitoring for Private Listing replication lag</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H8</td><td>Maintain producer registry (flipped vs non-flipped)</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H9</td><td>Document SB/DBX limitation for non-flipped data</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H10</td><td>Build automation: hybrid &rarr; ideal transition per producer</td><td><span class="pm">MED</span></td></tr>
+        <tr><td>H11</td><td><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg> Maintain east1 SF Storage Integrations</td><td><span class="pm">MED</span></td></tr>
+        <tr><td>H12</td><td>Cost tracking for Private Listing replication</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
+    <div class="tsec">
+      <h3 class="prh"><svg class="ic" width="18" height="18"><use href="#i-s3"/></svg> Non-Flipping Producer Teams</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td>1</td><td><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> Continue writing to east1 S3 (no change)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>2</td><td>Keep east1 SF IAM role in S3 bucket policy (removing breaks PL)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>3</td><td><svg class="ic" width="14" height="14"><use href="#i-r53"/></svg> Use CNAME for Producer Notification API (not direct east1 URL)</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>4</td><td>Coordinate with Platform on Private Listing setup</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>5</td><td>Commit to timeline for eventual flip to west2</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div>
+    <div class="tsec">
+      <h3 class="ch">Consumer Teams (Additional)</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td colspan="3" style="background:#F2F3F3;text-align:center;font-weight:600;color:var(--text2);">Same as Ideal State (Slide 3) &mdash; consumers operate in west2 during DR</td></tr>
+        <tr><td>+1</td><td>Understand: non-flipped data only available via <svg class="ic" width="12" height="12"><use href="#i-sf"/></svg> Snowflake in west2</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>+2</td><td>Accept Private Listing replication lag for non-flipped data</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
+
+    <div style="background:#fff;border:2px solid var(--border);border-radius:10px;padding:14px;margin-top:12px;">
+      <div style="font-weight:800;font-size:14px;margin-bottom:8px;color:var(--aws);">Ideal vs. Hybrid Comparison</div>
+      <table class="ctbl">
+        <tr><th>Aspect</th><th>Ideal</th><th>Hybrid</th></tr>
+        <tr><td><strong>Producer Adoption</strong></td><td>All can flip</td><td>Most flip; some stay east1</td></tr>
+        <tr><td><strong>Iceberg Paths</strong></td><td><span class="chk">&#10003; Eliminated</span> after flip</td><td><span class="wrn">&#9888;</span> PL for non-flipped</td></tr>
+        <tr><td><strong>Snowflake</strong></td><td><span class="chk">&#10003;</span> All data native</td><td><span class="chk">&#10003;</span> Native + PL</td></tr>
+        <tr><td><strong>Starburst / DBX</strong></td><td><span class="chk">&#10003;</span> Full access</td><td><span class="crs">&#10007;</span> No non-flip data</td></tr>
+        <tr><td><strong>Complexity</strong></td><td>Lower</td><td>Higher (two paths)</td></tr>
+        <tr><td><strong>Cost</strong></td><td>Lower</td><td>Higher (PL fees)</td></tr>
+        <tr><td><strong>east1 Dependency</strong></td><td><span class="chk">&#10003;</span> None during flip</td><td><span class="crs">&#10007;</span> Non-flip needs east1</td></tr>
+        <tr><td><strong>Path Forward</strong></td><td>Target state</td><td>Converges to Ideal</td></tr>
+      </table>
+    </div>
+
+    <div class="co ok" style="margin-top:10px;">
+      <strong>Goal:</strong> Hybrid is <strong>transitional</strong>. As each non-flipping producer migrates, they move from Private Listing to native. The end state is always the Ideal Architecture.
+    </div>
+  </div>
+</div>
+</div>
+<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6: DR FLIP SEQUENCE                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+<div class="s-hdr">
+  <div><h1>DR Flip Sequence</h1><div class="sub">Step-by-step failover from us-east-1 to us-west-2 during a sustained regional outage</div></div>
+  <div class="s-num">06 / 07</div>
+</div>
+<div class="s-body">
+<div class="g2">
+  <div>
+    <div style="font-weight:800;font-size:15px;color:var(--aws);margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid var(--aws);">Failover Steps</div>
+
+    <div class="seq-step">
+      <div class="seq-num">1</div>
+      <div class="seq-content"><div class="st"><svg class="ic" width="16" height="16"><use href="#i-cw"/></svg> Assess &amp; Approve</div><div class="sd">Confirm sustained us-east-1 outage via AWS Health Dashboard. Check S3 CRR replication status. Get VP Engineering approval.</div><div class="seq-time">5 minutes</div></div>
+    </div>
+    <div class="seq-step">
+      <div class="seq-num">2</div>
+      <div class="seq-content"><div class="st"><svg class="ic" width="16" height="16"><use href="#i-r53"/></svg><svg class="ic" width="16" height="16"><use href="#i-ecs"/></svg> Activate Platform APIs</div><div class="sd">Route53 failover &rarr; west2 ALB. DynamoDB west2 becomes write region. Scale up ECS services. Verify Lambda functions.</div><div class="seq-time">5-10 minutes</div></div>
+    </div>
+    <div class="seq-step">
+      <div class="seq-num">3</div>
+      <div class="seq-content"><div class="st"><svg class="ic" width="16" height="16"><use href="#i-glue"/></svg><svg class="ic" width="16" height="16"><use href="#i-s3"/></svg> Activate Iceberg Tables</div><div class="sd">Validate latest metadata.json in west2 S3. Run register_table in west2 Glue. Verify referenced data files exist (staleness buffer).</div><div class="seq-time">10-15 minutes</div></div>
+    </div>
+    <div class="seq-step">
+      <div class="seq-num">4</div>
+      <div class="seq-content"><div class="st"><svg class="ic" width="16" height="16"><use href="#i-sf"/></svg><svg class="ic" width="16" height="16"><use href="#i-sb"/></svg><svg class="ic" width="16" height="16"><use href="#i-dbx"/></svg> Activate Compute Platforms</div><div class="sd"><strong>Snowflake:</strong> Run external table recreation automation. <strong>Starburst:</strong> Scale up west2 cluster. <strong>Databricks:</strong> Activate workspace. <strong>Immuta:</strong> Verify connectivity.</div><div class="seq-time">10-20 minutes (parallel)</div></div>
+    </div>
+    <div class="seq-step">
+      <div class="seq-num">5</div>
+      <div class="seq-content"><div class="st"><svg class="ic" width="16" height="16"><use href="#i-sns"/></svg><svg class="ic" width="16" height="16"><use href="#i-kafka"/></svg> Activate Notifications</div><div class="sd">Verify SNS west2 receiving messages. Confirm Kafka flowing via west2 DX. Verify Polling API reachable via CNAME.</div><div class="seq-time">5 minutes (parallel with Step 4)</div></div>
+    </div>
+    <div class="seq-step">
+      <div class="seq-num">6</div>
+      <div class="seq-content"><div class="st"><svg class="ic" width="16" height="16"><use href="#i-s3"/></svg> Producers Flip</div><div class="sd">Reverse CRR (west2&rarr;east1). Switch writes to west2 S3. <em>Non-flipped: no change (Private Listing continues).</em></div><div class="seq-time">Coordinated with producers</div></div>
+    </div>
+    <div class="seq-step">
+      <div class="seq-num">7</div>
+      <div class="seq-content"><div class="st"><svg class="ic" width="16" height="16"><use href="#i-cw"/></svg> Notify Consumers &amp; Monitor</div><div class="sd">Status: Platform operational in west2. List available vs unavailable datasets. Continuous monitoring.</div><div class="seq-time">5 minutes</div></div>
+    </div>
+  </div>
+
+  <div>
+    <div style="font-weight:800;font-size:15px;color:var(--aws);margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid var(--aws);">RPO / RTO Summary</div>
+
+    <table class="ctbl">
+      <tr><th>Component</th><th>RPO</th><th>RTO</th></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> S3 Data (Parquet)</td><td>15 min</td><td>0 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> S3 Data (Iceberg)</td><td>15 min</td><td>10-15 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-ddb"/></svg> DynamoDB Metadata</td><td>~2 sec</td><td>0 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-glue"/></svg> Glue Catalog</td><td>~0 (dual-write)</td><td>0 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-ecs"/></svg> Platform APIs</td><td>~2 sec</td><td>5-10 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg> <strong>Snowflake (ext/Ice)</strong></td><td>N/A</td><td><strong style="color:var(--danger)">10-20 min</strong></td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-sb"/></svg> Starburst</td><td>~0</td><td>5-10 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-dbx"/></svg> Databricks</td><td>N/A</td><td>10-15 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-imm"/></svg> Immuta</td><td>Last CI/CD</td><td>5-10 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-sns"/></svg> SNS&rarr;SQS (dual-pub)</td><td>~0</td><td>0 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-kafka"/></svg> On-Prem Kafka</td><td>~2 sec</td><td>5-10 min</td></tr>
+      <tr><td><svg class="ic" width="14" height="14"><use href="#i-ecs"/></svg> Polling API</td><td>~2 sec</td><td>5-10 min</td></tr>
+    </table>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+      <div class="metric-card">
+        <div class="mv" style="color:var(--active);">&le; 15 min</div>
+        <div class="ml">RPO (data loss tolerance)</div>
+      </div>
+      <div class="metric-card">
+        <div class="mv" style="color:var(--aws-or);">45-60 min</div>
+        <div class="ml">RTO (time to restore)</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text3);margin-top:6px;">Bottleneck: <svg class="ic" width="12" height="12"><use href="#i-sf"/></svg> Snowflake external table recreation (10-20 min)</div>
+
+    <div style="font-weight:800;font-size:14px;color:var(--aws);margin-top:14px;padding-bottom:5px;border-bottom:2px solid var(--aws);">Failover Trigger</div>
+    <div style="font-size:10px;color:var(--text2);margin-top:6px;line-height:1.6;">
+      <strong>Trigger:</strong> Confirmed sustained us-east-1 outage (&gt;15 minutes)<br>
+      <strong>Authority:</strong> Platform Team Lead + VP Engineering<br>
+      <strong>Type:</strong> Manual (with automated detection + alerting)<br>
+      <strong>Failback:</strong> Manual, after us-east-1 stable for &gt;2 hours
+    </div>
+  </div>
+</div>
+</div>
+<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 7: KEY DECISIONS & BLOCKERS                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="slide" id="s7">
+<div class="s-hdr">
+  <div><h1>Key Decisions &amp; Blockers</h1><div class="sub">Architecture decisions requiring approval and critical blockers to resolve</div></div>
+  <div class="s-num">07 / 07</div>
+</div>
+<div class="s-body">
+<div class="g2">
+  <div>
+    <div style="font-weight:800;font-size:15px;color:var(--aws);margin-bottom:8px;">Pending Decisions</div>
+    <table class="ctbl">
+      <tr><th>#</th><th>Decision</th><th>Recommendation</th></tr>
+      <tr><td class="mono">D1</td><td>Failover strategy</td><td><strong>Active-Passive (Warm Standby)</strong></td></tr>
+      <tr><td class="mono">D2</td><td>Producer multi-region mandate</td><td><strong>Tiered:</strong> Tier 1 mandatory, Tier 2 recommended</td></tr>
+      <tr><td class="mono">D3</td><td><svg class="ic" width="12" height="12"><use href="#i-sf"/></svg> Snowflake edition</td><td><strong>Business Critical</strong> (failover groups + Client Redirect)</td></tr>
+      <tr><td class="mono">D4</td><td><svg class="ic" width="12" height="12"><use href="#i-glue"/></svg> Glue Catalog sync</td><td><strong>Dual-write</strong> from Notification API</td></tr>
+      <tr><td class="mono">D5</td><td><svg class="ic" width="12" height="12"><use href="#i-sns"/></svg> SNS notification DR</td><td><strong>Dual-publish</strong> (zero consumer action on flip)</td></tr>
+      <tr><td class="mono">D6</td><td><svg class="ic" width="12" height="12"><use href="#i-kafka"/></svg> Kafka connectivity</td><td><strong>Provision DX from west2</strong> (4-8 week lead)</td></tr>
+      <tr><td class="mono">D7</td><td>Failover trigger</td><td><strong>Manual</strong> with automated alerting</td></tr>
+      <tr><td class="mono">D8</td><td>Consumer connections</td><td><strong><svg class="ic" width="12" height="12"><use href="#i-r53"/></svg> CNAME</strong> for SB/DBX; <strong>Client Redirect</strong> for SF</td></tr>
+      <tr><td class="mono">D9</td><td><svg class="ic" width="12" height="12"><use href="#i-sf"/></svg> SF Private Listing + Iceberg</td><td><strong>Validate with SF support</strong> (see B2)</td></tr>
+      <tr><td class="mono">D10</td><td><svg class="ic" width="12" height="12"><use href="#i-imm"/></svg> Immuta on PL shared tables</td><td><strong>Validate governance</strong> (see B4)</td></tr>
+      <tr><td class="mono">D11</td><td>DR drill cadence</td><td><strong>Mandatory quarterly</strong> for Tier 1 + platform</td></tr>
+    </table>
+  </div>
+
+  <div>
+    <div style="font-weight:800;font-size:15px;color:var(--danger);margin-bottom:8px;">Critical Blockers</div>
+
+    <div class="blocker-row crit">
+      <div class="blocker-id">B1</div>
+      <div class="blocker-text"><svg class="ic" width="14" height="14"><use href="#i-dx"/></svg> <strong>Direct Connect from west2 to on-prem</strong> &mdash; 4-8 week lead time. Must start immediately.</div>
+      <div class="blocker-owner">Platform + Network</div>
+    </div>
+    <div class="blocker-row crit">
+      <div class="blocker-id">B2</div>
+      <div class="blocker-text"><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg> <strong>Snowflake Private Listing + Unmanaged Iceberg</strong> &mdash; BCR-1528 silently skips these. Must validate with SF support.</div>
+      <div class="blocker-owner">Platform + Snowflake</div>
+    </div>
+    <div class="blocker-row high">
+      <div class="blocker-id">B3</div>
+      <div class="blocker-text"><svg class="ic" width="14" height="14"><use href="#i-sf"/></svg> <strong>Snowflake Business Critical edition</strong> &mdash; may require contract upgrade for failover groups.</div>
+      <div class="blocker-owner">Platform + Procurement</div>
+    </div>
+    <div class="blocker-row high">
+      <div class="blocker-id">B4</div>
+      <div class="blocker-text"><svg class="ic" width="14" height="14"><use href="#i-imm"/></svg> <strong>Immuta on Private Listing shared tables</strong> &mdash; untested. Must validate governance coverage.</div>
+      <div class="blocker-owner">Governance Team</div>
+    </div>
+    <div class="blocker-row high">
+      <div class="blocker-id">B5</div>
+      <div class="blocker-text"><svg class="ic" width="14" height="14"><use href="#i-s3"/></svg> <strong>Iceberg metadata absolute paths</strong> &mdash; existing tables need register_table + path substitution automation.</div>
+      <div class="blocker-owner">Platform Team</div>
+    </div>
+
+    <div style="font-weight:800;font-size:14px;color:var(--aws);margin-top:14px;margin-bottom:8px;">Estimated Warm Standby Cost</div>
+    <table class="ctbl">
+      <tr><th>Component</th><th>Monthly Cost</th></tr>
+      <tr><td><svg class="ic" width="12" height="12"><use href="#i-s3"/></svg> S3 CRR Storage + Transfer</td><td class="mono" style="font-size:9px;">$0.02/GB transfer + storage duplication</td></tr>
+      <tr><td><svg class="ic" width="12" height="12"><use href="#i-ddb"/></svg> DynamoDB Global Tables</td><td class="mono" style="font-size:9px;">~2&times; write costs</td></tr>
+      <tr><td><svg class="ic" width="12" height="12"><use href="#i-ecs"/></svg> ECS Warm Standby</td><td class="mono" style="font-size:9px;">~20% of primary</td></tr>
+      <tr><td><svg class="ic" width="12" height="12"><use href="#i-sb"/></svg> Starburst Warm Standby</td><td class="mono" style="font-size:9px;">~15-20% of primary</td></tr>
+      <tr><td><svg class="ic" width="12" height="12"><use href="#i-sf"/></svg><svg class="ic" width="12" height="12"><use href="#i-dbx"/></svg> Snowflake / Databricks</td><td class="mono" style="font-size:9px;">Minimal (warehouses suspended)</td></tr>
+      <tr><td><svg class="ic" width="12" height="12"><use href="#i-imm"/></svg> Immuta</td><td class="mono" style="font-size:9px;">TBD with vendor (may need add'l license)</td></tr>
+      <tr style="background:var(--active-bg)"><td><strong>Estimated Total</strong></td><td class="mono" style="font-size:10px;color:var(--active);font-weight:700;">~25-35% of primary region cost</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- Implementation Timeline -->
+<div style="margin-top:14px;">
+  <div style="font-weight:800;font-size:14px;color:var(--aws);margin-bottom:8px;">Implementation Timeline</div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+    <div class="phase-box"><div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--database);border-radius:8px 8px 0 0;"></div><div class="ph-label">Phase 1</div><div class="ph-title">Foundation</div><div class="ph-weeks">Weeks 1-4</div><div class="ph-detail"><svg class="ic" width="10" height="10"><use href="#i-vpc"/></svg> VPC, <svg class="ic" width="10" height="10"><use href="#i-ddb"/></svg> DDB, <svg class="ic" width="10" height="10"><use href="#i-dx"/></svg> DX order,<br><svg class="ic" width="10" height="10"><use href="#i-sf"/></svg>/<svg class="ic" width="10" height="10"><use href="#i-sb"/></svg>/<svg class="ic" width="10" height="10"><use href="#i-dbx"/></svg> provision</div></div>
+    <div class="phase-box"><div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--database);border-radius:8px 8px 0 0;"></div><div class="ph-label">Phase 2</div><div class="ph-title">Platform Deploy</div><div class="ph-weeks">Weeks 5-8</div><div class="ph-detail"><svg class="ic" width="10" height="10"><use href="#i-ecs"/></svg> APIs, <svg class="ic" width="10" height="10"><use href="#i-sns"/></svg> SNS, <svg class="ic" width="10" height="10"><use href="#i-glue"/></svg> Glue,<br>dual-write, dual-pub</div></div>
+    <div class="phase-box"><div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--aws-or);border-radius:8px 8px 0 0;"></div><div class="ph-label">Phase 3</div><div class="ph-title">Producer Onboard</div><div class="ph-weeks">Weeks 9-16</div><div class="ph-detail">Tier 1 first, <svg class="ic" width="10" height="10"><use href="#i-s3"/></svg> CRR,<br>IAM, Access Points</div></div>
+    <div class="phase-box"><div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--active);border-radius:8px 8px 0 0;"></div><div class="ph-label">Phase 4</div><div class="ph-title">Consumer Ready</div><div class="ph-weeks">Weeks 13-18</div><div class="ph-detail"><svg class="ic" width="10" height="10"><use href="#i-sqs"/></svg> SQS, <svg class="ic" width="10" height="10"><use href="#i-r53"/></svg> CNAME, test<br>end-to-end in west2</div></div>
+    <div class="phase-box"><div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--network);border-radius:8px 8px 0 0;"></div><div class="ph-label">Phase 5</div><div class="ph-title">DR Drills</div><div class="ph-weeks">Weeks 17-20</div><div class="ph-detail">Runbook test, DR drill,<br>validation, hardening</div></div>
+  </div>
+</div>
+</div>
+<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Navigation                                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="nav">
+  <button onclick="go('s1')">1</button>
+  <button onclick="go('s2')">2</button>
+  <button onclick="go('s3')">3</button>
+  <button onclick="go('s4')">4</button>
+  <button onclick="go('s5')">5</button>
+  <button onclick="go('s6')">6</button>
+  <button onclick="go('s7')">7</button>
+</div>
+<script>
+function go(id){document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});}
+document.addEventListener('keydown',function(e){
+  var s=['s1','s2','s3','s4','s5','s6','s7'],c=0;
+  for(var i=0;i<s.length;i++){var r=document.getElementById(s[i]).getBoundingClientRect();if(r.top<=innerHeight/2&&r.bottom>=innerHeight/2){c=i;break;}}
+  if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' '){e.preventDefault();if(c<s.length-1)go(s[c+1]);}
+  else if(e.key==='ArrowUp'||e.key==='ArrowLeft'){e.preventDefault();if(c>0)go(s[c-1]);}
+});
+</script>
+</body>
+</html>
