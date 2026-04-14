@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Mesh Multi-Region Resiliency &mdash; v5 Executive Presentation</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --navy:#0a1628;--navy2:#132341;--navy3:#1a3158;
+  --e1:#fee2e2;--e1b:#ef4444;--e1t:#991b1b;
+  --w2:#dcfce7;--w2b:#22c55e;--w2t:#166534;
+  --plat:#dbeafe;--platb:#3b82f6;--platt:#1e40af;
+  --comp:#fef9c3;--compb:#eab308;--compt:#854d0e;
+  --ntfy:#fce7f3;--ntfyb:#ec4899;--ntfyt:#9d174d;
+  --cons:#e0e7ff;--consb:#6366f1;--const:#3730a3;
+  --gov:#f3e8ff;--govb:#a855f7;--govt:#6b21a8;
+  --prod:#ecfdf5;--prodb:#10b981;--prodt:#065f46;
+  --pl:#fff7ed;--plb:#f97316;--plt:#9a3412;
+  --sync:#fef3c7;--syncb:#f59e0b;--synct:#92400e;
+  --noi:#e2e8f0;--noib:#94a3b8;--noit:#475569;
+  --gold:#d4a574;--gold2:#c49256;
+}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+body{font-family:'Inter','Segoe UI',sans-serif;background:var(--navy);color:#1e293b;overflow:hidden;height:100vh;width:100vw;}
+
+/* ===== PRESENTATION FRAMEWORK ===== */
+.deck{position:relative;width:100vw;height:100vh;overflow:hidden;}
+.slide{position:absolute;inset:0;opacity:0;visibility:hidden;pointer-events:none;display:flex;flex-direction:column;background:#f8fafc;transition:opacity .7s cubic-bezier(.4,0,.2,1),transform .7s cubic-bezier(.4,0,.2,1);}
+.slide.active{opacity:1;visibility:visible;pointer-events:auto;z-index:2;}
+.slide.leaving{opacity:0;visibility:visible;z-index:1;transform:scale(.97);}
+
+/* Progress bar */
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--platb),var(--w2b),var(--gold));z-index:100;transition:width .5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px rgba(59,130,246,.5);}
+
+/* Slide header */
+.s-hdr{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 40%,var(--navy3) 100%);color:#fff;padding:28px 56px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;position:relative;overflow:hidden;}
+.s-hdr::before{content:'';position:absolute;top:-50%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(59,130,246,.08) 0%,transparent 70%);pointer-events:none;}
+.s-hdr h1{font-size:30px;font-weight:800;letter-spacing:-.5px;line-height:1.2;}
+.s-hdr .sub{font-size:15px;opacity:.7;margin-top:4px;font-weight:400;letter-spacing:.2px;}
+.s-hdr .sn{font-size:13px;opacity:.6;background:rgba(255,255,255,.08);padding:6px 18px;border-radius:20px;border:1px solid rgba(255,255,255,.1);font-weight:600;letter-spacing:.5px;}
+.s-body{flex:1;padding:28px 48px 24px;overflow-y:auto;}
+.s-foot{padding:8px 56px;text-align:right;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;flex-shrink:0;background:#fff;}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes fadeLeft{from{opacity:0;transform:translateX(-30px);}to{opacity:1;transform:translateX(0);}}
+@keyframes fadeRight{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulseSync{0%,100%{opacity:.6;transform:scale(1);}50%{opacity:1;transform:scale(1.15);}}
+@keyframes shimmer{0%{background-position:-200% 0;}100%{background-position:200% 0;}}
+@keyframes drawLine{from{width:0;}to{width:100%;}}
+
+.slide .a{opacity:0;}
+.slide.active .a{animation-fill-mode:both;}
+.slide.active .a1{animation:fadeUp .6s ease .1s both;}
+.slide.active .a2{animation:fadeUp .6s ease .2s both;}
+.slide.active .a3{animation:fadeUp .6s ease .3s both;}
+.slide.active .a4{animation:fadeUp .6s ease .4s both;}
+.slide.active .a5{animation:fadeUp .6s ease .5s both;}
+.slide.active .a6{animation:fadeUp .6s ease .6s both;}
+.slide.active .a7{animation:fadeUp .6s ease .7s both;}
+.slide.active .a8{animation:fadeUp .6s ease .8s both;}
+.slide.active .al1{animation:fadeLeft .6s ease .15s both;}
+.slide.active .al2{animation:fadeLeft .6s ease .3s both;}
+.slide.active .ar1{animation:fadeRight .6s ease .15s both;}
+.slide.active .ar2{animation:fadeRight .6s ease .3s both;}
+.slide.active .as1{animation:scaleIn .5s ease .2s both;}
+.slide.active .as2{animation:scaleIn .5s ease .35s both;}
+.slide.active .as3{animation:scaleIn .5s ease .5s both;}
+.slide.active .as4{animation:scaleIn .5s ease .65s both;}
+.slide.active .ad1{animation:slideDown .5s ease .1s both;}
+.slide.active .ad2{animation:slideDown .5s ease .25s both;}
+.slide.active .pulse{animation:pulseSync 2s ease-in-out infinite;}
+
+/* ===== COMPONENT STYLES ===== */
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px;background:#fff;border-radius:10px;border:1px solid #e2e8f0;font-size:11.5px;color:#475569;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.legend-s{width:14px;height:14px;border-radius:4px;border:2px solid;display:inline-block;vertical-align:middle;margin-right:5px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.badge.active{background:#dcfce7;color:#166534;border:1px solid #22c55e;}
+.badge.standby{background:#dbeafe;color:#1e40af;border:1px solid #3b82f6;}
+.badge.flip{background:#dcfce7;color:#166534;border:1px solid #22c55e;}
+.badge.noflip{background:#fee2e2;color:#991b1b;border:1px solid #ef4444;}
+
+/* Region layout */
+.two-region{display:grid;grid-template-columns:1fr 80px 1fr;gap:0;align-items:start;}
+.region{border:3px solid;border-radius:14px;padding:16px 18px 18px;position:relative;transition:box-shadow .3s;}
+.region:hover{box-shadow:0 8px 25px rgba(0,0,0,.08);}
+.region.east{border-color:var(--e1b);background:linear-gradient(180deg,#fef2f2 0%,#fff8f8 100%);}
+.region.west{border-color:var(--w2b);background:linear-gradient(180deg,#f0fdf4 0%,#f7fef9 100%);}
+.rlabel{position:absolute;top:-14px;left:18px;padding:3px 14px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:.4px;color:#fff;}
+.rlabel.east{background:var(--e1b);}
+.rlabel.west{background:var(--w2b);}
+.rstatus{position:absolute;top:-14px;right:18px;padding:3px 12px;border-radius:8px;font-size:11px;font-weight:700;}
+.rstatus.active-s{background:#166534;color:#fff;}
+.rstatus.standby-s{background:#1e40af;color:#fff;}
+
+/* Sync column */
+.sync-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:30px 0;font-size:9px;color:#64748b;}
+.sync-arrow{font-size:16px;color:var(--syncb);line-height:1;}
+.sync-label{writing-mode:vertical-rl;text-orientation:mixed;font-size:9px;font-weight:600;color:var(--synct);background:var(--sync);padding:3px 4px;border-radius:4px;letter-spacing:.3px;}
+
+/* Component boxes */
+.cbox{border:2px solid;border-radius:8px;padding:8px 12px;text-align:center;font-size:11px;min-width:90px;transition:transform .2s,box-shadow .2s;}
+.cbox:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.cbox .t{font-weight:700;font-size:12px;margin-bottom:2px;}
+.cbox .d{font-size:10px;opacity:.85;line-height:1.35;}
+.cbox.prod{background:var(--prod);border-color:var(--prodb);color:var(--prodt);}
+.cbox.comp{background:var(--comp);border-color:var(--compb);color:var(--compt);}
+
+/* Sections */
+.rsec{margin-bottom:8px;}
+.rsec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#64748b;margin-bottom:5px;padding-left:2px;}
+.rsec-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
+.fa{text-align:center;font-size:16px;color:#94a3b8;margin:3px 0;line-height:1;}
+.fl{text-align:center;font-size:9px;color:#94a3b8;font-style:italic;margin-bottom:4px;}
+
+/* Platform box */
+.plat-box{background:var(--plat);border:2px solid var(--platb);border-radius:10px;padding:10px 14px;margin-bottom:8px;transition:box-shadow .3s;}
+.plat-box:hover{box-shadow:0 4px 15px rgba(59,130,246,.12);}
+.plat-box .t{font-weight:700;font-size:12px;color:var(--platt);margin-bottom:5px;}
+.plat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.plat-cell{background:#fff;border:1px solid var(--platb);border-radius:6px;padding:6px 8px;font-size:10px;color:var(--platt);}
+.plat-cell .l{font-weight:700;font-size:11px;margin-bottom:1px;}
+
+/* Notification box */
+.ntfy-box{background:var(--ntfy);border:2px solid var(--ntfyb);border-radius:10px;padding:8px 14px;margin-bottom:8px;}
+.ntfy-box .t{font-weight:700;font-size:12px;color:var(--ntfyt);margin-bottom:4px;}
+.ntfy-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.ntfy-cell{background:#fff;border:1px solid var(--ntfyb);border-radius:6px;padding:5px 7px;font-size:10px;color:var(--ntfyt);}
+.ntfy-cell .l{font-weight:700;font-size:10px;margin-bottom:1px;}
+.ntfy-cell.no-impact{background:var(--noi);border-color:var(--noib);color:var(--noit);position:relative;}
+.ntfy-cell.no-impact .l{color:var(--noit);}
+.no-impact-tag{display:inline-block;background:#94a3b8;color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:.3px;margin-left:4px;vertical-align:middle;}
+
+/* Consumer / Gov */
+.cons-box{background:var(--cons);border:2px solid var(--consb);border-radius:10px;padding:8px 14px;}
+.cons-box .t{font-weight:700;font-size:12px;color:var(--const);margin-bottom:2px;}
+.cons-box .d{font-size:10px;color:var(--const);}
+.gov-box{background:var(--gov);border:2px solid var(--govb);border-radius:10px;padding:7px 14px;margin-bottom:8px;}
+.gov-box .t{font-weight:700;font-size:11px;color:var(--govt);margin-bottom:2px;}
+.gov-box .d{font-size:10px;color:var(--govt);}
+
+/* Callouts */
+.co{border-radius:0 10px 10px 0;padding:10px 14px;font-size:11.5px;margin:8px 0;}
+.co.info{background:#eff6ff;border-left:4px solid #3b82f6;color:#1e40af;}
+.co.warn{background:#fef3c7;border-left:4px solid #f59e0b;color:#92400e;}
+.co.ok{background:#dcfce7;border-left:4px solid #22c55e;color:#166534;}
+.co strong{font-weight:700;}
+
+/* Sync bar */
+.sync-bar{background:var(--sync);border:2px solid var(--syncb);border-radius:10px;padding:12px 18px;margin:10px 0;}
+.sync-bar .t{font-weight:700;font-size:13px;color:var(--synct);margin-bottom:6px;}
+.sync-items{display:flex;flex-wrap:wrap;gap:8px;}
+.sync-item{background:#fff;border:1px solid var(--syncb);border-radius:6px;padding:5px 12px;font-size:10px;font-weight:600;color:var(--synct);transition:transform .2s;}
+.sync-item:hover{transform:scale(1.05);}
+
+/* Private Listing */
+.pl-bridge{background:var(--pl);border:2px dashed var(--plb);border-radius:10px;padding:7px 14px;margin:6px 0;text-align:center;font-size:11px;font-weight:700;color:var(--plt);}
+
+/* Task tables */
+.tsec{margin-bottom:14px;}
+.tsec h3{font-size:14px;font-weight:700;padding:8px 14px;border-radius:10px;color:#fff;margin-bottom:8px;}
+.tsec h3.ph{background:linear-gradient(135deg,var(--platt),var(--platb));}
+.tsec h3.prh{background:linear-gradient(135deg,var(--prodt),var(--prodb));}
+.tsec h3.ch{background:linear-gradient(135deg,var(--const),var(--consb));}
+.ttbl{width:100%;border-collapse:collapse;font-size:11px;}
+.ttbl th{background:#f1f5f9;padding:6px 8px;text-align:left;font-weight:700;border-bottom:2px solid #cbd5e1;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#475569;}
+.ttbl td{padding:5px 8px;border-bottom:1px solid #e2e8f0;vertical-align:top;}
+.ttbl tr{transition:background .2s;}
+.ttbl tr:hover{background:#f0f5ff;}
+.pc{background:#fef2f2;color:#dc2626;font-weight:700;padding:1px 6px;border-radius:4px;font-size:9px;}
+.ph-p{background:#fff7ed;color:#ea580c;font-weight:700;padding:1px 6px;border-radius:4px;font-size:9px;}
+.pm{background:#fefce8;color:#ca8a04;font-weight:700;padding:1px 6px;border-radius:4px;font-size:9px;}
+.tcols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.tcols2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.chk{color:#22c55e;font-weight:700;}.crs{color:#ef4444;font-weight:700;}.wrn{color:#f59e0b;font-weight:700;}
+
+/* Comparison */
+.ctbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+.ctbl th{background:var(--navy);color:#fff;padding:8px 12px;text-align:left;font-size:11px;}
+.ctbl td{padding:6px 12px;border-bottom:1px solid #e2e8f0;}
+.ctbl tr:nth-child(even){background:#f8fafc;}
+
+/* Sequence steps */
+.seq-step{display:flex;gap:12px;margin-bottom:8px;align-items:flex-start;}
+.seq-num{background:var(--navy);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.seq-content{flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;transition:box-shadow .2s;}
+.seq-content:hover{box-shadow:0 4px 12px rgba(0,0,0,.06);}
+.seq-content .st{font-weight:700;font-size:13px;color:var(--navy);margin-bottom:2px;}
+.seq-content .sd{font-size:11px;color:#475569;}
+.seq-time{font-size:10px;color:#94a3b8;font-weight:600;margin-top:3px;}
+
+/* ===== NAVIGATION ===== */
+.nav-bar{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(10,22,40,.95);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.08);padding:10px 48px;display:flex;justify-content:space-between;align-items:center;}
+.nav-dots{display:flex;gap:6px;align-items:center;}
+.nav-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.15);border:none;cursor:pointer;transition:all .3s;padding:0;}
+.nav-dot.active{background:var(--platb);width:28px;border-radius:5px;}
+.nav-dot:hover{background:rgba(255,255,255,.3);}
+.nav-arrows{display:flex;gap:8px;}
+.nav-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;font-family:inherit;}
+.nav-btn:hover{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.2);}
+.nav-btn:active{transform:scale(.97);}
+.nav-info{color:rgba(255,255,255,.5);font-size:12px;font-weight:500;}
+
+/* ===== TITLE SLIDE SPECIAL ===== */
+.title-slide{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 40%,#1e3a5f 100%);color:#fff;justify-content:center;align-items:center;text-align:center;}
+.title-slide h1{font-size:48px;font-weight:900;letter-spacing:-1px;line-height:1.15;margin-bottom:12px;}
+.title-slide h1 span{background:linear-gradient(135deg,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.title-slide .t-sub{font-size:20px;color:rgba(255,255,255,.6);font-weight:400;margin-bottom:40px;letter-spacing:.3px;}
+.title-slide .t-meta{display:flex;gap:32px;justify-content:center;align-items:center;font-size:13px;color:rgba(255,255,255,.4);font-weight:500;}
+.title-slide .t-meta div{display:flex;align-items:center;gap:8px;}
+.title-slide .t-divider{width:1px;height:16px;background:rgba(255,255,255,.15);}
+.title-slide .t-badge{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);padding:6px 16px;border-radius:20px;font-size:12px;color:#93c5fd;font-weight:600;letter-spacing:.5px;margin-bottom:36px;}
+
+/* Subtle bg decoration */
+.title-slide::before{content:'';position:absolute;top:10%;right:5%;width:400px;height:400px;background:radial-gradient(circle,rgba(59,130,246,.06) 0%,transparent 70%);pointer-events:none;}
+.title-slide::after{content:'';position:absolute;bottom:15%;left:8%;width:300px;height:300px;background:radial-gradient(circle,rgba(34,197,94,.05) 0%,transparent 70%);pointer-events:none;}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 0: TITLE ===== -->
+<div class="slide title-slide active" data-slide="0">
+  <div class="a as1 t-badge">ARCHITECTURE REVIEW</div>
+  <h1 class="a as2">Data Mesh Platform<br><span>Multi-Region Resiliency</span></h1>
+  <div class="a as3 t-sub">Ideal &amp; Hybrid Architecture &mdash; Strategy, Implementation &amp; Discussion Points</div>
+  <div class="a a5 t-meta">
+    <div>April 2026</div>
+    <div class="t-divider"></div>
+    <div>Primary: us-west-2 (Oregon)</div>
+    <div class="t-divider"></div>
+    <div>Secondary: us-east-1 (N. Virginia)</div>
+    <div class="t-divider"></div>
+    <div>Status: Draft</div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 1: CURRENT ARCHITECTURE ===== -->
+<div class="slide" data-slide="1">
+<div class="s-hdr">
+  <div><h1>Current Architecture</h1><div class="sub">All components in us-east-1 only &mdash; single region, no DR capability</div></div>
+  <div class="sn">1 / 9</div>
+</div>
+<div class="s-body">
+<div class="legend a a1">
+  <span><span class="legend-s" style="background:var(--prod);border-color:var(--prodb)"></span>Producers</span>
+  <span><span class="legend-s" style="background:var(--plat);border-color:var(--platb)"></span>Data Mesh Platform</span>
+  <span><span class="legend-s" style="background:var(--comp);border-color:var(--compb)"></span>Compute Platforms</span>
+  <span><span class="legend-s" style="background:var(--gov);border-color:var(--govb)"></span>Governance (Immuta)</span>
+  <span><span class="legend-s" style="background:var(--ntfy);border-color:var(--ntfyb)"></span>Consumer Notifications</span>
+  <span><span class="legend-s" style="background:var(--cons);border-color:var(--consb)"></span>Consumers</span>
+</div>
+
+<div class="region east a a2" style="max-width:100%;">
+  <div class="rlabel east">us-east-1 (N. Virginia) &mdash; ALL COMPONENTS</div>
+  <div class="rstatus active-s">PRODUCTION</div>
+  <div class="rsec" style="margin-top:6px;">
+    <div class="rsec-label">Producers (each in own AWS account)</div>
+    <div class="rsec-row">
+      <div class="cbox prod"><div class="t">Producer A</div><div class="d">S3 (Parquet)<br>us-east-1</div></div>
+      <div class="cbox prod"><div class="t">Producer B</div><div class="d">S3 (Iceberg)<br>us-east-1</div></div>
+      <div class="cbox prod"><div class="t">Producer C</div><div class="d">S3 (Parquet)<br>us-east-1</div></div>
+      <div class="cbox prod" style="opacity:.5"><div class="t">Producer N...</div><div class="d">S3<br>us-east-1</div></div>
+    </div>
+  </div>
+  <div class="fa">&#x25BC;</div>
+  <div class="fl">Register Dataset / Notify "New Data Available"</div>
+  <div class="plat-box">
+    <div class="t">Data Mesh Platform (Platform AWS Account, us-east-1)</div>
+    <div class="plat-grid">
+      <div class="plat-cell"><div class="l">Registration APIs</div>Route53 &rarr; ALB &rarr; ECS Services</div>
+      <div class="plat-cell"><div class="l">Producer Notification API</div>Lambda &mdash; receives "new data" from producers<br>Writes DynamoDB, updates Glue Catalog</div>
+      <div class="plat-cell"><div class="l">Consumer Notification API</div>Lambda &mdash; publishes SNS &rarr; SQS<br>Pushes to On-Prem Kafka via DX/VPN <span style="color:#94a3b8;font-weight:700;font-size:8px;">(ON-PREM, NO IMPACT)</span><br>Stores in DynamoDB for polling</div>
+      <div class="plat-cell"><div class="l">Infrastructure</div>DynamoDB (Metadata) &bull; SNS Topic<br>Glue Catalog &bull; S3 VPC Endpoint<br>Notification Polling API (ECS+DDB)</div>
+    </div>
+  </div>
+  <div class="fa">&#x25BC;</div>
+  <div class="fl">S3 VPC Gateway Endpoint &rarr; Producer S3 Buckets</div>
+  <div class="rsec">
+    <div class="rsec-label">Compute Platforms</div>
+    <div class="rsec-row">
+      <div class="cbox comp" style="min-width:200px"><div class="t">Snowflake (us-east-1)</div><div class="d">External Tables (Parquet)<br>Unmanaged Iceberg Tables<br>Storage Integrations &rarr; east1 S3</div></div>
+      <div class="cbox comp" style="min-width:200px"><div class="t">Starburst (us-east-1)</div><div class="d">Glue Catalog as Metastore<br>S3 Access Point Aliases<br>VPC Gateway Endpoint</div></div>
+      <div class="cbox comp" style="min-width:200px"><div class="t">Databricks (us-east-1)</div><div class="d">External Tables<br>Unity Catalog Metastore<br>IAM Roles &rarr; east1 S3</div></div>
+    </div>
+  </div>
+  <div class="gov-box"><div class="t">Immuta Governance (Governance Team Account, us-east-1)</div><div class="d"><strong>Starburst:</strong> Runtime API calls (hard dependency) &bull; <strong>Snowflake:</strong> Native policy sync &bull; <strong>Databricks:</strong> Native policy sync</div></div>
+  <div class="ntfy-box">
+    <div class="t">Consumer Notification Layer (us-east-1)</div>
+    <div class="ntfy-grid">
+      <div class="ntfy-cell"><div class="l">Ch 1: SNS &rarr; SQS</div>Platform SNS &darr; Consumer SQS<br>(consumer accounts, east1)<br><em>Consumer polls SQS</em></div>
+      <div class="ntfy-cell no-impact"><div class="l">Ch 2: On-Prem Kafka <span class="no-impact-tag">NO IMPACT</span></div>On-prem &mdash; not affected by AWS region failover<br><em>On-prem apps consume directly</em></div>
+      <div class="ntfy-cell"><div class="l">Ch 3: Polling API</div>REST API (ECS + DynamoDB)<br>Consumer polls for notifications<br><em>Most resilient channel</em></div>
+    </div>
+  </div>
+  <div class="cons-box"><div class="t">Consumers (us-east-1)</div><div class="d">Query via Snowflake / Starburst / Databricks &bull; Notified via SNS-SQS / Kafka (on-prem, no impact) / Polling API &bull; SQS in consumer AWS accounts (east1)</div></div>
+</div>
+<div class="co warn a a4" style="margin-top:10px;">
+  <strong>Single Point of Failure:</strong> A full us-east-1 outage renders the entire platform unavailable &mdash; APIs, compute, governance, notifications, all consumer queries. Historical: us-east-1 outages in 2017, 2020, 2021, 2023.
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+<!-- ===== SLIDE 2: IDEAL ARCHITECTURE ===== -->
+<div class="slide" data-slide="2">
+<div class="s-hdr">
+  <div><h1>Ideal State &mdash; Proposed Architecture</h1><div class="sub">Both regions fully provisioned: us-east-1 (Production) + us-west-2 (DR Warm Standby)</div></div>
+  <div class="sn">2 / 9</div>
+</div>
+<div class="s-body">
+<div class="legend a a1">
+  <span><span class="badge active">ACTIVE</span> Production</span>
+  <span><span class="badge standby">STANDBY</span> DR Ready</span>
+  <span><span style="color:var(--syncb);font-weight:700;">&#9654;&#9654;</span> Cross-region sync (always active)</span>
+  <span>All producers, platform, consumers have infra in <strong>both</strong> regions</span>
+</div>
+<div class="two-region a a2">
+  <div class="region east al1 a">
+    <div class="rlabel east">us-east-1 (N. Virginia)</div>
+    <div class="rstatus active-s">PRIMARY / PRODUCTION</div>
+    <div class="rsec" style="margin-top:6px;">
+      <div class="rsec-label">Producers &mdash; Active Write</div>
+      <div class="rsec-row">
+        <div class="cbox prod"><div class="t">Prod A</div><div class="d">S3 east1<br><strong>PRIMARY WRITE</strong></div></div>
+        <div class="cbox prod"><div class="t">Prod B</div><div class="d">S3 east1<br><strong>PRIMARY WRITE</strong></div></div>
+        <div class="cbox prod"><div class="t">Prod C</div><div class="d">S3 east1<br><strong>PRIMARY WRITE</strong></div></div>
+      </div>
+    </div>
+    <div class="fa">&#x25BC;</div>
+    <div class="plat-box">
+      <div class="t">Platform <span class="badge active">ACTIVE</span></div>
+      <div class="plat-grid">
+        <div class="plat-cell"><div class="l">Registration API</div>ECS/ALB <span class="badge active">ACTIVE</span></div>
+        <div class="plat-cell"><div class="l">Producer Notif API</div>Lambda <span class="badge active">ACTIVE</span></div>
+        <div class="plat-cell"><div class="l">Consumer Notif API</div>Lambda <span class="badge active">ACTIVE</span><br>Publishes to <strong>BOTH</strong> SNS topics</div>
+        <div class="plat-cell"><div class="l">Infrastructure</div>DynamoDB <strong>PRIMARY WRT</strong><br>SNS &bull; Glue &bull; Polling API</div>
+      </div>
+    </div>
+    <div class="fa">&#x25BC;</div>
+    <div class="rsec">
+      <div class="rsec-label">Compute Platforms <span class="badge active">ACTIVE</span></div>
+      <div class="rsec-row">
+        <div class="cbox comp"><div class="t">Snowflake</div><div class="d">ExtTbl, Iceberg<br>Storage Integ.</div></div>
+        <div class="cbox comp"><div class="t">Starburst</div><div class="d">Glue, S3 AccPt<br>VPC Endpoint</div></div>
+        <div class="cbox comp"><div class="t">Databricks</div><div class="d">ExtTbl, Unity<br>Catalog</div></div>
+      </div>
+    </div>
+    <div class="fl">S3 VPC Gateway Endpoint &rarr; Producer S3 Buckets (east1)</div>
+    <div class="gov-box"><div class="t">Immuta <span class="badge active">ACTIVE</span></div><div class="d">SB runtime &bull; SF sync &bull; DBX sync</div></div>
+    <div class="ntfy-box">
+      <div class="t">Consumer Notifications <span class="badge active">ACTIVE</span></div>
+      <div class="ntfy-grid">
+        <div class="ntfy-cell"><div class="l">SNS&rarr;SQS</div>Consumers poll east1 SQS</div>
+        <div class="ntfy-cell no-impact"><div class="l">Kafka <span class="no-impact-tag">NO IMPACT</span></div>On-prem &mdash; no change</div>
+        <div class="ntfy-cell"><div class="l">Poll API</div>ECS + DynamoDB</div>
+      </div>
+    </div>
+    <div class="cons-box"><div class="t">Consumers <span class="badge active">ACTIVE</span></div><div class="d">SQS east1 &bull; Query SF/SB/DBX east1 &bull; Use CNAME</div></div>
+  </div>
+  <div class="sync-col">
+    <div class="sync-label">S3 CRR</div><div class="sync-arrow pulse a">&#x25B6;</div><div style="height:16px"></div>
+    <div class="sync-label">DynamoDB</div><div class="sync-label">Global Tbl</div><div class="sync-arrow pulse a">&#x25B6;</div><div style="height:6px"></div>
+    <div class="sync-label">Glue</div><div class="sync-label">Dual-Wrt</div><div class="sync-arrow pulse a">&#x25B6;</div><div style="height:6px"></div>
+    <div class="sync-label">SNS</div><div class="sync-label">Dual-Pub</div><div class="sync-arrow pulse a">&#x25B6;</div><div style="height:6px"></div>
+    <div class="sync-label">Immuta</div><div class="sync-label">Policy</div><div class="sync-label">as-Code</div><div class="sync-arrow pulse a">&#x25B6;</div><div style="height:6px"></div>
+    <div class="sync-label">Route53</div><div class="sync-label">Failover</div><div class="sync-arrow pulse a">&#x25B6;</div>
+  </div>
+  <div class="region west ar1 a">
+    <div class="rlabel west">us-west-2 (Oregon)</div>
+    <div class="rstatus standby-s">SECONDARY / DR</div>
+    <div class="rsec" style="margin-top:6px;">
+      <div class="rsec-label">Producer S3 Replicas</div>
+      <div class="rsec-row">
+        <div class="cbox prod" style="opacity:.7"><div class="t">Prod A</div><div class="d">S3 west2<br><strong>REPLICA</strong> (CRR)</div></div>
+        <div class="cbox prod" style="opacity:.7"><div class="t">Prod B</div><div class="d">S3 west2<br><strong>REPLICA</strong> (CRR)</div></div>
+        <div class="cbox prod" style="opacity:.7"><div class="t">Prod C</div><div class="d">S3 west2<br><strong>REPLICA</strong> (CRR)</div></div>
+      </div>
+    </div>
+    <div class="fa" style="opacity:.5">&#x25BC;</div>
+    <div class="plat-box" style="opacity:.85">
+      <div class="t">Platform <span class="badge standby">WARM STANDBY</span></div>
+      <div class="plat-grid">
+        <div class="plat-cell"><div class="l">Registration API</div>ECS/ALB <span class="badge standby">STBY</span><br>min task count</div>
+        <div class="plat-cell"><div class="l">Producer Notif API</div>Lambda <span class="badge standby">DEPLOYED</span></div>
+        <div class="plat-cell"><div class="l">Consumer Notif API</div>Lambda <span class="badge standby">DEPLOYED</span><br>SNS west2 receives dual-pub</div>
+        <div class="plat-cell"><div class="l">Infrastructure</div>DynamoDB <strong>REPLICA (RO)</strong><br>SNS &bull; Glue &bull; Polling API</div>
+      </div>
+    </div>
+    <div class="fa" style="opacity:.5">&#x25BC;</div>
+    <div class="rsec">
+      <div class="rsec-label">Compute Platforms <span class="badge standby">WARM STANDBY</span></div>
+      <div class="rsec-row">
+        <div class="cbox comp" style="opacity:.7"><div class="t">Snowflake</div><div class="d">ExtTbl, Iceberg<br>Storage Integ.</div></div>
+        <div class="cbox comp" style="opacity:.7"><div class="t">Starburst</div><div class="d">Glue, S3 AccPt<br>VPC Endpt, min wkrs</div></div>
+        <div class="cbox comp" style="opacity:.7"><div class="t">Databricks</div><div class="d">ExtTbl, Unity<br>Catalog</div></div>
+      </div>
+    </div>
+    <div class="fl" style="opacity:.6;">S3 VPC Gateway Endpoint &rarr; Producer S3 Buckets (west2)</div>
+    <div class="gov-box" style="opacity:.85"><div class="t">Immuta <span class="badge standby">STANDBY</span></div><div class="d">Policies synced via CI/CD</div></div>
+    <div class="ntfy-box" style="opacity:.85">
+      <div class="t">Consumer Notifications <span class="badge standby">STANDBY</span></div>
+      <div class="ntfy-grid">
+        <div class="ntfy-cell"><div class="l">SNS&rarr;SQS</div>west2 SQS pre-created</div>
+        <div class="ntfy-cell no-impact"><div class="l">Kafka <span class="no-impact-tag">NO IMPACT</span></div>On-prem &mdash; no change</div>
+        <div class="ntfy-cell"><div class="l">Poll API</div>ECS+DDB (standby)</div>
+      </div>
+    </div>
+    <div class="cons-box" style="opacity:.85"><div class="t">Consumers <span class="badge standby">READY</span></div><div class="d">SQS west2 pre-created &bull; Same CNAME endpoints &bull; Ready to switch</div></div>
+  </div>
+</div>
+<div class="sync-bar a a4">
+  <div class="t">Cross-Region Synchronization (Always Active During Normal Operations)</div>
+  <div class="sync-items">
+    <div class="sync-item">S3 CRR east1&rarr;west2 (15-min SLA via RTC)</div>
+    <div class="sync-item">DynamoDB Global Tables (~2s lag)</div>
+    <div class="sync-item">Glue Catalog Dual-Write</div>
+    <div class="sync-item">SNS Dual-Publish (both topics)</div>
+    <div class="sync-item">Route53 Failover Routing</div>
+    <div class="sync-item">ECR Cross-Region Replication</div>
+    <div class="sync-item">Immuta Policy-as-Code CI/CD</div>
+    <div class="sync-item">Snowflake Account Replication</div>
+  </div>
+</div>
+<div class="co ok a a5">
+  <strong>During DR Flip:</strong> Producers reverse CRR (west2&rarr;east1), write to west2. Platform activates west2 infra. Consumers switch to west2 endpoints. Iceberg path problem eliminated (native west2 paths after flip).
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+<!-- ===== SLIDE 3: CRITICAL DISCUSSION POINTS ===== -->
+<div class="slide" data-slide="3">
+<div class="s-hdr">
+  <div><h1>Critical Discussion Points &mdash; Dual-Region Gaps</h1><div class="sub">Architectural changes requiring detailed analysis: registration, API enhancements, notifications, and Iceberg table sync</div></div>
+  <div class="sn">3 / 9</div>
+</div>
+<div class="s-body">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+  <div class="a as1" style="border:2.5px solid #3b82f6;border-radius:12px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+      <div style="background:rgba(255,255,255,.25);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;">1</div>
+      <div style="font-size:14px;font-weight:700;">Producer Registration &mdash; Dual-Region Schema Creation</div>
+    </div>
+    <div style="padding:10px 14px;font-size:11px;color:#1e293b;line-height:1.5;">
+      <div style="margin-bottom:6px;"><strong style="color:#1e40af;">Today:</strong> Schemas (Glue, Snowflake, DynamoDB) created in east1 only. <strong style="color:#166534;">Need:</strong> Every data product / data store creation must trigger schemas on <strong>both regions</strong>. Existing products need <strong>one-time backfill</strong> to west2.</div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 10px;">
+        <div style="font-weight:700;font-size:10px;color:#1e40af;margin-bottom:3px;">DISCUSSION POINTS</div>
+        <ul style="margin:0;padding-left:16px;font-size:10.5px;color:#334155;">
+          <li>Sync dual-write vs async (east1 first, west2 via event)?</li>
+          <li>Backfill: inventory existing products, automated script vs manual?</li>
+          <li>Starburst Glue Catalog sync: Producer Notification API must update Glue Catalog in <strong>both regions</strong> so Starburst west2 reflects new partitions/data</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="a as2" style="border:2.5px solid #8b5cf6;border-radius:12px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#5b21b6,#8b5cf6);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+      <div style="background:rgba(255,255,255,.25);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;">2</div>
+      <div style="font-size:14px;font-weight:700;">DEX &amp; Mesh API &mdash; Dual-Region Enhancement</div>
+    </div>
+    <div style="padding:10px 14px;font-size:11px;color:#1e293b;line-height:1.5;">
+      <div style="margin-bottom:6px;"><strong style="color:#5b21b6;">Today:</strong> DEX &amp; Mesh API target east1 only. <strong style="color:#166534;">Need:</strong> Enhance to register on <strong>both regions</strong> (similar to <strong>Swiss setup</strong>). Every create/update/delete must propagate to east1 + west2.</div>
+      <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:7px 10px;">
+        <div style="font-weight:700;font-size:10px;color:#5b21b6;margin-bottom:3px;">DISCUSSION POINTS</div>
+        <ul style="margin:0;padding-left:16px;font-size:10.5px;color:#334155;">
+          <li>Which Swiss multi-region patterns can be reused vs need adaptation?</li>
+          <li>API contract: transparent dual-write internally, or new region parameter?</li>
+          <li>Region-aware config: distinct SF accounts, Glue endpoints, IAM roles per region</li>
+          <li>Rollback strategy if west2 fails after east1 succeeds</li>
+          <li>Schema drift detection &amp; reconciliation between regions</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="a as3" style="border:2.5px solid #ec4899;border-radius:12px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#9d174d,#ec4899);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+      <div style="background:rgba(255,255,255,.25);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;">3</div>
+      <div style="font-size:14px;font-weight:700;">Consumer Notification &mdash; Dual-Region SNS Publishing</div>
+    </div>
+    <div style="padding:10px 14px;font-size:11px;color:#1e293b;line-height:1.5;">
+      <div style="margin-bottom:6px;"><strong style="color:#9d174d;">Today:</strong> Consumer Notification Lambda publishes to east1 SNS only. <strong style="color:#166534;">Need:</strong> Dual-publish to <strong>both east1 + west2 SNS</strong>. Consumers not doing region failover must still receive notifications.</div>
+      <div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:7px 10px;">
+        <div style="font-weight:700;font-size:10px;color:#9d174d;margin-bottom:3px;">DISCUSSION POINTS</div>
+        <ul style="margin:0;padding-left:16px;font-size:10.5px;color:#334155;">
+          <li>Lambda code change to dual-publish on every invocation</li>
+          <li>DR (east1 down): consumers with east1-only SQS lose notifications until failover</li>
+          <li>Cross-account SNS &rarr; SQS subscriptions needed in west2 (new IAM/SQS policies)</li>
+          <li>Publish failure: if one region fails &mdash; retry, DLQ, or accept partial?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="a as4" style="border:2.5px solid #f59e0b;border-radius:12px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#92400e,#f59e0b);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+      <div style="background:rgba(255,255,255,.25);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;">4</div>
+      <div style="font-size:14px;font-weight:700;">Iceberg Table Updates on US-WEST-2 After Replication</div>
+    </div>
+    <div style="padding:10px 14px;font-size:11px;color:#1e293b;line-height:1.5;">
+      <div style="margin-bottom:6px;"><strong style="color:#92400e;">Gap:</strong> After CRR replicates Iceberg files to west2, <strong>compute platforms don't know about new data</strong>. Replicated metadata.json has <strong>absolute east1 S3 paths</strong>. <strong style="color:#166534;">Need:</strong> Refresh/re-register west2 Iceberg tables after CRR.</div>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:7px 10px;">
+        <div style="font-weight:700;font-size:10px;color:#92400e;margin-bottom:3px;">DISCUSSION POINTS</div>
+        <ul style="margin:0;padding-left:16px;font-size:10.5px;color:#334155;">
+          <li>Event-driven: S3 event on west2 (metadata.json arrival) &rarr; Lambda &rarr; table refresh</li>
+          <li>Path problem: need <code>register_table</code> with west2 paths or path substitution layer</li>
+          <li>Snowflake: <code>ALTER ICEBERG TABLE REFRESH</code> or re-register after CRR</li>
+          <li>Ordering risk: metadata may replicate before data files &rarr; need <strong>staleness buffer</strong></li>
+          <li>Total latency: CRR (~15 min SLA) + refresh processing = west2 data staleness</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="co info a a6" style="margin-top:12px;">
+  <strong>Action Required:</strong> Each area needs a detailed design doc with sequence diagrams and team ownership before implementation. Backfill of existing products to west2 (Topic 1) is a prerequisite for DR readiness.
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+<!-- ===== SLIDE 4: HYBRID ARCHITECTURE ===== -->
+<div class="slide" data-slide="4">
+<div class="s-hdr">
+  <div><h1>Hybrid State &mdash; Proposed Architecture</h1><div class="sub">Most producers can flip; non-flipping producers use Snowflake Private Listing (SnowGrid)</div></div>
+  <div class="sn">4 / 9</div>
+</div>
+<div class="s-body">
+<div class="legend a a1">
+  <span><span class="badge flip">CAN FLIP</span> Ready for DR</span>
+  <span><span class="badge noflip">CANNOT FLIP</span> Stays in east1</span>
+  <span><span class="legend-s" style="background:var(--pl);border-color:var(--plb)"></span>Snowflake Private Listing</span>
+  <span><strong>Identical to Ideal + Private Listing bridge for non-flipped producers</strong></span>
+</div>
+<div class="two-region a a2">
+  <div class="region east al1 a">
+    <div class="rlabel east">us-east-1 (N. Virginia)</div>
+    <div class="rstatus active-s">PRIMARY / PRODUCTION</div>
+    <div class="rsec" style="margin-top:6px;">
+      <div class="rsec-label">Flipped Producers (can flip to DR)</div>
+      <div class="rsec-row">
+        <div class="cbox prod"><div class="t">Prod A <span class="badge flip">FLIP</span></div><div class="d">S3 east1 PRIMARY</div></div>
+        <div class="cbox prod"><div class="t">Prod B <span class="badge flip">FLIP</span></div><div class="d">S3 east1 PRIMARY</div></div>
+      </div>
+    </div>
+    <div class="rsec">
+      <div class="rsec-label">Non-Flipped Producers (cannot flip)</div>
+      <div class="rsec-row">
+        <div class="cbox prod" style="border-color:var(--e1b);background:#fff5f5"><div class="t">Prod X <span class="badge noflip">NO FLIP</span></div><div class="d">S3 east1 ONLY<br>No CRR to west2</div></div>
+        <div class="cbox prod" style="border-color:var(--e1b);background:#fff5f5"><div class="t">Prod Y <span class="badge noflip">NO FLIP</span></div><div class="d">S3 east1 ONLY<br>No CRR to west2</div></div>
+      </div>
+    </div>
+    <div class="fa">&#x25BC;</div>
+    <div class="plat-box"><div class="t">Platform <span class="badge active">ACTIVE</span></div><div style="font-size:10px;color:var(--platt);">Registration API &bull; Producer Notif API &bull; Consumer Notif API<br>DynamoDB (PRIMARY WRT) &bull; SNS &bull; Glue &bull; Polling API &bull; Lambdas</div></div>
+    <div class="fa">&#x25BC;</div>
+    <div class="rsec">
+      <div class="rsec-label">Compute Platforms <span class="badge active">ACTIVE</span></div>
+      <div class="rsec-row">
+        <div class="cbox comp"><div class="t">Snowflake</div><div class="d">ALL data<br>(flipped + non-flipped)</div></div>
+        <div class="cbox comp"><div class="t">Starburst</div><div class="d">ALL data</div></div>
+        <div class="cbox comp"><div class="t">Databricks</div><div class="d">ALL data</div></div>
+      </div>
+    </div>
+    <div class="pl-bridge" style="margin-top:6px;">Snowflake east1 &mdash; PROVIDER<br><span style="font-weight:400;font-size:10px;">Unmanaged Iceberg Tables for non-flipped Prod X, Prod Y<br>Private Listing shares this data cross-region to west2 SF &#x25B6;</span></div>
+    <div class="gov-box"><div class="t">Immuta <span class="badge active">ACTIVE</span></div></div>
+    <div class="ntfy-box" style="padding:6px 10px;"><div class="t" style="margin-bottom:0;">Consumer Notifications <span class="badge active">ACTIVE</span></div></div>
+    <div class="cons-box" style="margin-top:6px;"><div class="t">Consumers <span class="badge active">ACTIVE</span></div></div>
+  </div>
+  <div class="sync-col">
+    <div class="sync-label">S3 CRR</div><div class="sync-label">(flipped</div><div class="sync-label">only)</div><div class="sync-arrow pulse a">&#x25B6;</div><div style="height:12px"></div>
+    <div class="sync-label">DDB</div><div class="sync-label">Glue</div><div class="sync-label">SNS</div><div class="sync-arrow pulse a">&#x25B6;</div><div style="height:12px"></div>
+    <div class="sync-label">Immuta</div><div class="sync-label">Policy</div><div class="sync-arrow pulse a">&#x25B6;</div><div style="height:12px"></div>
+    <div class="sync-label" style="background:var(--pl);color:var(--plt);border:1px solid var(--plb);">Private</div>
+    <div class="sync-label" style="background:var(--pl);color:var(--plt);border:1px solid var(--plb);">Listing</div>
+    <div class="sync-arrow pulse a" style="color:var(--plb);">&#x25B6;</div><div style="height:12px"></div>
+    <div class="sync-label">Route53</div><div class="sync-arrow pulse a">&#x25B6;</div>
+  </div>
+  <div class="region west ar1 a">
+    <div class="rlabel west">us-west-2 (Oregon)</div>
+    <div class="rstatus standby-s">SECONDARY / DR</div>
+    <div class="rsec" style="margin-top:6px;">
+      <div class="rsec-label">Flipped Producer S3 Replicas</div>
+      <div class="rsec-row">
+        <div class="cbox prod" style="opacity:.7"><div class="t">Prod A <span class="badge flip">FLIP</span></div><div class="d">S3 west2 REPLICA</div></div>
+        <div class="cbox prod" style="opacity:.7"><div class="t">Prod B <span class="badge flip">FLIP</span></div><div class="d">S3 west2 REPLICA</div></div>
+      </div>
+    </div>
+    <div class="rsec">
+      <div class="rsec-label" style="color:var(--e1b);">Non-Flipped &mdash; NO S3 replica in west2</div>
+      <div style="font-size:10px;color:#94a3b8;text-align:center;padding:4px;">Prod X, Prod Y data only via Snowflake Private Listing</div>
+    </div>
+    <div class="fa" style="opacity:.5">&#x25BC;</div>
+    <div class="plat-box" style="opacity:.85"><div class="t">Platform <span class="badge standby">WARM STANDBY</span></div><div style="font-size:10px;color:var(--platt);">Registration API &bull; Producer Notif API &bull; Consumer Notif API<br>DynamoDB (REPLICA RO) &bull; SNS &bull; Glue &bull; Polling API &bull; Lambdas</div></div>
+    <div class="fa" style="opacity:.5">&#x25BC;</div>
+    <div class="rsec">
+      <div class="rsec-label">Compute Platforms <span class="badge standby">WARM STANDBY</span></div>
+      <div class="rsec-row">
+        <div class="cbox comp" style="opacity:.8"><div class="t">Snowflake</div><div class="d"><span class="chk">&#10003;</span> Flipped data<br><span class="chk">&#10003;</span> Non-flip via PL</div></div>
+        <div class="cbox comp" style="opacity:.8"><div class="t">Starburst</div><div class="d"><span class="chk">&#10003;</span> Flipped data<br><span class="crs">&#10007;</span> No non-flip</div></div>
+        <div class="cbox comp" style="opacity:.8"><div class="t">Databricks</div><div class="d"><span class="chk">&#10003;</span> Flipped data<br><span class="crs">&#10007;</span> No non-flip</div></div>
+      </div>
+    </div>
+    <div class="pl-bridge">&#x25C0; Snowflake west2 &mdash; CONSUMER<br><span style="font-weight:400;font-size:10px;">Receives non-flipped producer data via Private Listing<br>Available as shared database in west2 SF account</span></div>
+    <div class="gov-box" style="opacity:.85"><div class="t">Immuta <span class="badge standby">STANDBY</span></div></div>
+    <div class="ntfy-box" style="padding:6px 10px;opacity:.85"><div class="t" style="margin-bottom:0;">Consumer Notifications <span class="badge standby">STANDBY</span></div></div>
+    <div class="cons-box" style="margin-top:6px;opacity:.85"><div class="t">Consumers <span class="badge standby">READY</span></div></div>
+  </div>
+</div>
+<div class="co warn a a4" style="margin-top:8px;">
+  <strong>Hybrid Limitations:</strong>
+  (1) Non-flipped data <strong>only in Snowflake</strong> &mdash; Starburst/Databricks cannot consume Private Listing.
+  (2) If east1 has full outage, Private Listing replication stops &mdash; non-flipped data unavailable.
+  (3) <strong>Must validate</strong> Private Listing + unmanaged Iceberg with Snowflake support (BCR-1528).
+  (4) Validate Immuta governance on Private Listing shared tables.
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+<!-- ===== SLIDE 4b: SNOWFLAKE PRIVATE LISTING DEEP DIVE ===== -->
+<div class="slide" data-slide="4b">
+<div class="s-hdr">
+  <div><h1>Snowflake Private Listing (SnowGrid) &mdash; Deep Dive</h1><div class="sub">Consumer-platform-specific feature: scope, limitations, operational process, and open decisions</div></div>
+  <div class="sn">5 / 9</div>
+</div>
+<div class="s-body">
+
+<!-- Platform Scope Banner -->
+<div style="display:flex;gap:14px;margin-bottom:16px;" class="a a1">
+  <div style="flex:1;background:linear-gradient(135deg,#dcfce7,#f0fdf4);border:2.5px solid #22c55e;border-radius:12px;padding:14px 18px;text-align:center;box-shadow:0 4px 15px rgba(34,197,94,.12);">
+    <div style="font-size:22px;margin-bottom:5px;">&#x2744;</div>
+    <div style="font-weight:800;font-size:14px;color:#166534;">Snowflake</div>
+    <div style="font-size:10px;color:#166534;margin-top:3px;font-weight:600;letter-spacing:.5px;">SUPPORTED</div>
+    <div style="font-size:9.5px;color:#15803d;margin-top:4px;line-height:1.4;">Private Listing / SnowGrid<br>enables cross-region data sharing</div>
+  </div>
+  <div style="flex:1;background:linear-gradient(135deg,#fef2f2,#fff5f5);border:2.5px solid #ef4444;border-radius:12px;padding:14px 18px;text-align:center;opacity:.85;box-shadow:0 4px 15px rgba(239,68,68,.08);">
+    <div style="font-size:22px;margin-bottom:5px;">&#x26A0;</div>
+    <div style="font-weight:800;font-size:14px;color:#991b1b;">Starburst</div>
+    <div style="font-size:10px;color:#dc2626;margin-top:3px;font-weight:600;letter-spacing:.5px;">NOT AVAILABLE</div>
+    <div style="font-size:9.5px;color:#b91c1c;margin-top:4px;line-height:1.4;">No equivalent cross-region<br>sharing feature exists</div>
+  </div>
+  <div style="flex:1;background:linear-gradient(135deg,#fef2f2,#fff5f5);border:2.5px solid #ef4444;border-radius:12px;padding:14px 18px;text-align:center;opacity:.85;box-shadow:0 4px 15px rgba(239,68,68,.08);">
+    <div style="font-size:22px;margin-bottom:5px;">&#x26A0;</div>
+    <div style="font-weight:800;font-size:14px;color:#991b1b;">Databricks</div>
+    <div style="font-size:10px;color:#dc2626;margin-top:3px;font-weight:600;letter-spacing:.5px;">NOT AVAILABLE</div>
+    <div style="font-size:9.5px;color:#b91c1c;margin-top:4px;line-height:1.4;">Unity Catalog does not support<br>cross-region Private Listing</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+  <!-- LEFT: Operational Process + Limitations -->
+  <div>
+    <div class="a a2" style="border:2.5px solid #f97316;border-radius:12px;overflow:hidden;margin-bottom:14px;box-shadow:0 4px 15px rgba(249,115,22,.08);">
+      <div style="background:linear-gradient(135deg,#9a3412,#f97316);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+        <div style="background:rgba(255,255,255,.25);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">&#x2699;</div>
+        <div style="font-size:14px;font-weight:700;">Operational Process</div>
+      </div>
+      <div style="padding:12px 16px;font-size:10.5px;color:#1e293b;line-height:1.55;">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <div style="min-width:26px;height:26px;background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;box-shadow:0 2px 6px rgba(249,115,22,.3);">1</div>
+            <div><strong>Manual Setup with Snowflake SRE</strong><br><span style="font-size:9.5px;color:#475569;">Private Listing creation is <strong>not self-service</strong> &mdash; requires coordination with Snowflake SRE team to configure provider &amp; consumer accounts</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <div style="min-width:26px;height:26px;background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;box-shadow:0 2px 6px rgba(249,115,22,.3);">2</div>
+            <div><strong>New Schema &rarr; SRE Engagement</strong><br><span style="font-size:9.5px;color:#475569;">When a new data product schema is created, must engage Snowflake SRE to <strong>add the schema to the Private Listing</strong>. Not automated today.</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <div style="min-width:26px;height:26px;background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;box-shadow:0 2px 6px rgba(249,115,22,.3);">3</div>
+            <div><strong>Replication Activation</strong><br><span style="font-size:9.5px;color:#475569;">Snowflake handles data replication cross-region via SnowGrid &mdash; consumer account in west2 receives a <strong>shared database</strong> (read-only)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="a a4" style="border:2.5px solid #ef4444;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(239,68,68,.08);">
+      <div style="background:linear-gradient(135deg,#991b1b,#ef4444);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+        <div style="background:rgba(255,255,255,.25);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">!</div>
+        <div style="font-size:14px;font-weight:700;">Key Limitations</div>
+      </div>
+      <div style="padding:12px 16px;font-size:10.5px;color:#1e293b;line-height:1.55;">
+        <ul style="margin:0;padding-left:16px;font-size:10.5px;color:#334155;">
+          <li style="margin-bottom:4px;"><strong>Snowflake-only:</strong> Starburst &amp; Databricks consumers <strong>cannot access</strong> non-flipped producer data during DR</li>
+          <li style="margin-bottom:4px;"><strong>Manual dependency:</strong> Every new schema addition requires SRE involvement &mdash; risk of delays</li>
+          <li style="margin-bottom:4px;"><strong>East1 dependency:</strong> If east1 has full outage, Private Listing replication <strong>stops</strong> &mdash; non-flipped data becomes stale</li>
+          <li><strong>Unmanaged Iceberg validation:</strong> Must validate with Snowflake support (BCR-1528)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Discussion Points -->
+  <div>
+    <div class="a a3" style="border:2.5px solid #8b5cf6;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(139,92,246,.08);">
+      <div style="background:linear-gradient(135deg,#5b21b6,#8b5cf6);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+        <div style="background:rgba(255,255,255,.25);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">?</div>
+        <div style="font-size:14px;font-weight:700;">Open Discussion Points</div>
+      </div>
+      <div style="padding:12px 16px;font-size:10.5px;color:#1e293b;line-height:1.55;">
+        <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+          <div style="font-weight:700;font-size:10px;color:#5b21b6;margin-bottom:4px;letter-spacing:.3px;">MONITORING &amp; FREQUENCY</div>
+          <ul style="margin:0;padding-left:14px;font-size:10px;color:#334155;">
+            <li>Replication lag monitoring: how to track Private Listing sync freshness?</li>
+            <li>Alerting: what SLA for data staleness is acceptable?</li>
+            <li>Replication frequency: near real-time, hourly, or on-demand refresh?</li>
+            <li>Dashboard/observability for Private Listing health &amp; status</li>
+          </ul>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+          <div style="font-weight:700;font-size:10px;color:#1e40af;margin-bottom:4px;letter-spacing:.3px;">NEW SCHEMA ONBOARDING</div>
+          <ul style="margin:0;padding-left:14px;font-size:10px;color:#334155;">
+            <li>Can the SRE process be streamlined or partially automated?</li>
+            <li>Lead time for SRE to add a new schema to Private Listing?</li>
+            <li>Who owns the request workflow &mdash; producer team, platform team, or both?</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="co warn a a5" style="margin-top:12px;">
+  <strong>Impact Summary:</strong> Private Listing is a <strong>Snowflake-only</strong> capability. During DR, Starburst &amp; Databricks consumers lose access to non-flipped producer data entirely. This trade-off must be accepted or mitigated with producer S3 CRR onboarding.
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+<!-- ===== SLIDE 5: HIGH-LEVEL TASK BREAKDOWN ===== -->
+<div class="slide" data-slide="5">
+<div class="s-hdr">
+  <div><h1>High-Level Task Breakdown</h1><div class="sub">Key workstreams for Platform, Producer, and Consumer teams to enable multi-region resiliency</div></div>
+  <div class="sn">6 / 9</div>
+</div>
+<div class="s-body">
+<div style="display:grid;grid-template-columns:1.2fr 0.9fr 0.9fr;gap:20px;">
+  <div class="a as1" style="border:2.5px solid #3b82f6;border-radius:14px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;">
+      <div style="background:rgba(255,255,255,.2);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;">&#9881;</div>
+      <div><div style="font-size:18px;font-weight:800;">Platform Tasks</div><div style="font-size:11px;opacity:.85;">Data Mesh Platform Team</div></div>
+    </div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:7px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;border-left:4px solid #3b82f6;"><div style="min-width:24px;height:24px;background:#3b82f6;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">1</div><div><div style="font-size:12px;font-weight:700;color:#1e3a5f;">Setup Starburst on US-WEST-2</div><div style="font-size:10px;color:#475569;margin-top:2px;">Provision and configure Starburst cluster in the secondary region</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;border-left:4px solid #3b82f6;"><div style="min-width:24px;height:24px;background:#3b82f6;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">2</div><div><div style="font-size:12px;font-weight:700;color:#1e3a5f;">Setup Registration API &amp; Infra on US-WEST-2</div><div style="font-size:10px;color:#475569;margin-top:2px;">Deploy Registration API services, ECS tasks, and supporting infrastructure</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;border-left:4px solid #3b82f6;"><div style="min-width:24px;height:24px;background:#3b82f6;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">3</div><div><div style="font-size:12px;font-weight:700;color:#1e3a5f;">Setup Replication of DynamoDB &amp; Other Data</div><div style="font-size:10px;color:#475569;margin-top:2px;">Enable DynamoDB Global Tables and replicate metadata to US-WEST-2</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;border-left:4px solid #3b82f6;"><div style="min-width:24px;height:24px;background:#3b82f6;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">4</div><div><div style="font-size:12px;font-weight:700;color:#1e3a5f;">Setup Producer Notification API on US-WEST-2</div><div style="font-size:10px;color:#475569;margin-top:2px;">Deploy producer-facing notification services in the secondary region</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;border-left:4px solid #3b82f6;"><div style="min-width:24px;height:24px;background:#3b82f6;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">5</div><div><div style="font-size:12px;font-weight:700;color:#1e3a5f;">Setup Consumer Notification (API &amp; SNS)</div><div style="font-size:10px;color:#475569;margin-top:2px;">Deploy consumer notification API and configure SNS topics in US-WEST-2</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;border-left:4px solid #3b82f6;"><div style="min-width:24px;height:24px;background:#3b82f6;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">6</div><div><div style="font-size:12px;font-weight:700;color:#1e3a5f;">Registration Changes</div><div style="font-size:10px;color:#475569;margin-top:2px;">US-WEST-2 producer registration and Snowflake Private Listing support</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;border-left:4px solid #3b82f6;"><div style="min-width:24px;height:24px;background:#3b82f6;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">7</div><div><div style="font-size:12px;font-weight:700;color:#1e3a5f;">Dex Integration / Changes</div><div style="font-size:10px;color:#475569;margin-top:2px;">Update Dex for multi-region setup and cross-region coordination</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;border-left:4px solid #3b82f6;"><div style="min-width:24px;height:24px;background:#3b82f6;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">8</div><div><div style="font-size:12px;font-weight:700;color:#1e3a5f;">Updates to Route53</div><div style="font-size:10px;color:#475569;margin-top:2px;">Add US-WEST-2 endpoints and configure DNS failover routing policies</div></div></div>
+    </div>
+  </div>
+  <div class="a as2" style="border:2.5px solid #10b981;border-radius:14px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#065f46,#10b981);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;">
+      <div style="background:rgba(255,255,255,.2);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;">&#9650;</div>
+      <div><div style="font-size:18px;font-weight:800;">Producer Tasks</div><div style="font-size:11px;opacity:.85;">Data Producer Teams</div></div>
+    </div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:7px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;border-left:4px solid #10b981;"><div style="min-width:24px;height:24px;background:#10b981;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">1</div><div><div style="font-size:12px;font-weight:700;color:#065f46;">Setup US-WEST-2 Region</div><div style="font-size:10px;color:#475569;margin-top:2px;">Provision AWS accounts, VPCs, IAM roles, and access policies</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;border-left:4px solid #10b981;"><div style="min-width:24px;height:24px;background:#10b981;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">2</div><div><div style="font-size:12px;font-weight:700;color:#065f46;">Replicate S3 Data to US-WEST-2</div><div style="font-size:10px;color:#475569;margin-top:2px;">Enable S3 Cross-Region Replication for all producer datasets</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;border-left:4px solid #10b981;"><div style="min-width:24px;height:24px;background:#10b981;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">3</div><div><div style="font-size:12px;font-weight:700;color:#065f46;">ETL Pipeline &amp; Glue Catalog Setup</div><div style="font-size:10px;color:#475569;margin-top:2px;">Configure ETL pipelines and Glue Data Catalog for US-WEST-2</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;border-left:4px solid #10b981;"><div style="min-width:24px;height:24px;background:#10b981;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">4</div><div><div style="font-size:12px;font-weight:700;color:#065f46;">CADS Request</div><div style="font-size:10px;color:#475569;margin-top:2px;">Submit Cloud Architecture &amp; Design Services request for review</div></div></div>
+    </div>
+  </div>
+  <div class="a as3" style="border:2.5px solid #6366f1;border-radius:14px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#3730a3,#6366f1);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;">
+      <div style="background:rgba(255,255,255,.2);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;">&#9660;</div>
+      <div><div style="font-size:18px;font-weight:800;">Consumer Tasks</div><div style="font-size:11px;opacity:.85;">Data Consumer Teams</div></div>
+    </div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:7px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;border-left:4px solid #6366f1;"><div style="min-width:24px;height:24px;background:#6366f1;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">1</div><div><div style="font-size:12px;font-weight:700;color:#3730a3;">Setup US-WEST-2</div><div style="font-size:10px;color:#475569;margin-top:2px;">Provision consumer AWS resources, VPCs, and IAM policies</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;border-left:4px solid #6366f1;"><div style="min-width:24px;height:24px;background:#6366f1;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">2</div><div><div style="font-size:12px;font-weight:700;color:#3730a3;">Setup Consumer Pipeline in US-WEST-2</div><div style="font-size:10px;color:#475569;margin-top:2px;">Deploy and configure data consumption pipelines</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;border-left:4px solid #6366f1;"><div style="min-width:24px;height:24px;background:#6366f1;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">3</div><div><div style="font-size:12px;font-weight:700;color:#3730a3;">Setup SNS-SQS Connectivity on US-WEST-2</div><div style="font-size:10px;color:#475569;margin-top:2px;">Configure SNS subscriptions and SQS queues for notifications</div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;border-left:4px solid #6366f1;"><div style="min-width:24px;height:24px;background:#6366f1;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">4</div><div><div style="font-size:12px;font-weight:700;color:#3730a3;">Update Connections to Global URLs</div><div style="font-size:10px;color:#475569;margin-top:2px;">Switch compute endpoints to global URLs for seamless failover</div></div></div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+<!-- ===== SLIDE 6: DR FLIP SEQUENCE ===== -->
+<div class="slide" data-slide="6">
+<div class="s-hdr">
+  <div><h1>DR Flip Sequence</h1><div class="sub">Step-by-step failover from us-east-1 to us-west-2 during a sustained regional outage</div></div>
+  <div class="sn">7 / 9</div>
+</div>
+<div class="s-body">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div>
+    <div class="a a1" style="font-weight:700;font-size:16px;color:var(--navy);margin-bottom:12px;border-bottom:2px solid var(--navy);padding-bottom:5px;">Failover Steps</div>
+    <div class="seq-step a a2"><div class="seq-num">1</div><div class="seq-content"><div class="st">Assess &amp; Approve</div><div class="sd">Confirm sustained us-east-1 outage via AWS Health Dashboard. Check S3 CRR replication status. Get VP Engineering approval.</div><div class="seq-time">5 minutes</div></div></div>
+    <div class="seq-step a a3"><div class="seq-num">2</div><div class="seq-content"><div class="st">Activate Platform APIs</div><div class="sd">Route53 failover &rarr; west2 ALB. DynamoDB west2 becomes write region. Scale up ECS services. Verify Lambda functions.</div><div class="seq-time">5-10 minutes</div></div></div>
+    <div class="seq-step a a4"><div class="seq-num">3</div><div class="seq-content"><div class="st">Activate Iceberg Tables</div><div class="sd">Validate latest metadata.json in west2 S3. Run register_table in west2 Glue. Verify referenced data files exist (staleness buffer).</div><div class="seq-time">10-15 minutes</div></div></div>
+    <div class="seq-step a a5"><div class="seq-num">4</div><div class="seq-content"><div class="st">Activate Compute Platforms</div><div class="sd"><strong>Snowflake:</strong> Run external table recreation automation. <strong>Starburst:</strong> Scale up west2 cluster. <strong>Databricks:</strong> Activate workspace. <strong>Immuta:</strong> Verify connectivity.</div><div class="seq-time">10-20 minutes (parallel)</div></div></div>
+    <div class="seq-step a a6"><div class="seq-num">5</div><div class="seq-content"><div class="st">Activate Notifications</div><div class="sd">Verify SNS west2 receiving messages. <span style="color:#94a3b8;">Kafka: on-prem, no impact.</span> Verify Polling API reachable via CNAME.</div><div class="seq-time">5 minutes (parallel with Step 4)</div></div></div>
+    <div class="seq-step a a7"><div class="seq-num">6</div><div class="seq-content"><div class="st">Producers Flip</div><div class="sd">Reverse CRR (west2&rarr;east1). Switch writes to west2 S3. <em>Non-flipped: no change (Private Listing continues).</em></div><div class="seq-time">Coordinated with producers</div></div></div>
+    <div class="seq-step a a8"><div class="seq-num">7</div><div class="seq-content"><div class="st">Notify Consumers &amp; Monitor</div><div class="sd">Status: Platform operational in west2. List available vs unavailable datasets. Continuous monitoring.</div><div class="seq-time">5 minutes</div></div></div>
+  </div>
+  <div>
+    <div class="a ar1" style="font-weight:700;font-size:16px;color:var(--navy);margin-bottom:10px;border-bottom:2px solid var(--navy);padding-bottom:5px;">Failover Trigger</div>
+    <div class="a ar2" style="font-size:13px;color:#475569;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;line-height:2;">
+      <strong>Trigger:</strong> Confirmed sustained us-east-1 outage (&gt;15 minutes)<br>
+      <strong>Authority:</strong> Platform Team Lead + VP Engineering<br>
+      <strong>Type:</strong> Manual (with automated detection + alerting)<br>
+      <strong>Failback:</strong> Manual, after us-east-1 stable for &gt;2 hours
+    </div>
+  </div>
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+<!-- ===== SLIDE 7: TASKS IDEAL STATE ===== -->
+<div class="slide" data-slide="7">
+<div class="s-hdr">
+  <div><h1>Tasks Required &mdash; Ideal State</h1><div class="sub">Work by Data Mesh Platform, Producers, and Consumers to achieve full dual-region readiness</div></div>
+  <div class="sn">8 / 9</div>
+</div>
+<div class="s-body">
+<div class="tcols">
+  <div class="tsec a as1">
+    <h3 class="ph">Data Mesh Platform Team</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td>Create VPC, subnets, S3 VPC Endpoint in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td>Deploy ECS Registration APIs in west2 (warm standby)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td>Deploy Producer Notification API (Lambda) in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td>Deploy Consumer Notification API (Lambda) in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>5</td><td>Create SNS topic in west2 + cross-account subs</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>6</td><td>Configure DynamoDB Global Tables (add west2 replica)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>7</td><td>Deploy all Lambda functions in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>8</td><td>Set up Glue Catalog in west2 + Lake Formation perms</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>8a</td><td>Modify Notification Lambda for Glue dual-write</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>9</td><td>Implement SNS dual-publish (both east1 + west2)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>10</td><td>Configure Route53 failover routing + health checks</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>11</td><td>Provision Snowflake account in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>12</td><td>Build external table / Iceberg recreation automation</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>13</td><td>Deploy Starburst cluster in west2 (warm standby)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>14</td><td>Deploy Databricks workspace in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>15</td><td>Deploy Immuta in west2 + Policy-as-Code CI/CD</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>16</td><td>Build self-service producer onboarding toolkit</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>18</td><td>Build monitoring &amp; alerting for west2</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>19</td><td>Deploy Notification Polling API in west2</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>20</td><td>ECR cross-region replication</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>21</td><td>Build &amp; test DR flip runbook</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>22</td><td>Decommission plan for east1 standby after failback</td><td><span class="pm">MED</span></td></tr>
+    </tbody></table>
+  </div>
+  <div class="tsec a as2">
+    <h3 class="prh">Producer Teams</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td>Create mirror S3 bucket in us-west-2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td>Enable S3 versioning on BOTH buckets</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td>Enable S3 CRR: east1&rarr;west2 with RTC (15-min SLA)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td>Grant compute platform IAM roles access to west2 bucket</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>5</td><td>Create S3 Access Points on west2 bucket (Starburst)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>6</td><td>Enable Replication Metrics &amp; Monitoring</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>7</td><td>Prepare CRR reversal procedure (west2&rarr;east1)</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>8</td><td>Prepare to switch writes to west2 during DR</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>9</td><td>Validate east1 write &rarr; west2 replica accessible</td><td><span class="ph-p">HIGH</span></td></tr>
+    </tbody></table>
+    <div class="co info" style="margin-top:10px;"><strong>Normal Ops:</strong> Producers write to east1 S3 (primary). CRR replicates to west2.<br><strong>During DR Flip:</strong> Producers reverse CRR and switch writes to west2 S3.</div>
+  </div>
+  <div class="tsec a as3">
+    <h3 class="ch">Consumer Teams</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td>Create SQS queue in us-west-2 (own account)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td>Subscribe west2 SQS to west2 SNS topic</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td>Use platform CNAME endpoints (not direct URLs)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td>Prepare to switch polling to west2 SQS during DR</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>5</td><td>Implement idempotent message processing</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr style="background:#f1f5f9;color:#94a3b8;"><td>6</td><td>On-prem Kafka: no impact (on-prem, not affected by region failover)</td><td><span style="background:#94a3b8;color:#fff;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;">N/A</span></td></tr>
+      <tr><td>7</td><td>Test end-to-end in west2 during DR drill</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>8</td><td>Document connection failover procedure</td><td><span class="pm">MED</span></td></tr>
+    </tbody></table>
+    <div class="co info" style="margin-top:10px;"><strong>Consumer Connection Strategy:</strong><br>&bull; <strong>CNAME (Recommended):</strong> Platform DNS routes transparently<br>&bull; <strong>Snowflake Client Redirect:</strong> Native (Business Critical ed.)<br>&bull; <strong>Dual-Publish:</strong> Consumers can poll both SQS queues</div>
+  </div>
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+<!-- ===== SLIDE 8: TASKS HYBRID STATE ===== -->
+<div class="slide" data-slide="8">
+<div class="s-hdr">
+  <div><h1>Tasks Required &mdash; Hybrid State</h1><div class="sub">Additional tasks beyond Ideal State to support non-flipping producers via Snowflake Private Listing</div></div>
+  <div class="sn">9 / 9</div>
+</div>
+<div class="s-body">
+<div class="co info a a1" style="margin-bottom:12px;"><strong>Prerequisite:</strong> All Ideal State tasks (Slide 7) must be completed first. The tasks below are <strong>additional</strong> work specific to Hybrid.</div>
+<div class="tcols2">
+  <div>
+    <div class="tsec a as1">
+      <h3 class="ph">Platform Team (Additional)</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td>H1</td><td>Maintain Snowflake east1 account as Private Listing provider</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H2</td><td>Set up Snowflake Private Listing / SnowGrid per non-flipped producer</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H3</td><td>Configure east1 SF as provider (share non-flipped tables)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H4</td><td>Configure west2 SF as consumer (subscribe to listings)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H5</td><td>Validate Immuta governance on Private Listing shared tables</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H6</td><td>Ensure non-flipped producers use CNAME for Notif API</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H7</td><td>Build monitoring for Private Listing replication lag</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H8</td><td>Maintain producer registry (flipped vs non-flipped)</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H9</td><td>Document SB/DBX limitation for non-flipped data</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H10</td><td>Build automation: hybrid &rarr; ideal transition per producer</td><td><span class="pm">MED</span></td></tr>
+        <tr><td>H11</td><td>Maintain east1 SF Storage Integrations</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
+    <div class="tsec a as2">
+      <h3 class="prh">Non-Flipping Producer Teams</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td>1</td><td>Continue writing to east1 S3 (no change)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>2</td><td>Keep east1 SF IAM role in S3 bucket policy</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>3</td><td>Use CNAME for Producer Notification API</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>4</td><td>Coordinate with Platform on Private Listing setup</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>5</td><td>Commit to timeline for eventual flip to west2</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div>
+    <div class="tsec a as3">
+      <h3 class="ch">Consumer Teams (Additional)</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td colspan="3" style="background:#f1f5f9;text-align:center;font-weight:600;">Same as Ideal State (Slide 7) &mdash; consumers operate in west2 during DR</td></tr>
+        <tr><td>+1</td><td>Understand: non-flipped data only available via Snowflake in west2</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>+2</td><td>Accept Private Listing replication lag for non-flipped data</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
+    <div class="a as4" style="background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:14px;">
+      <div style="font-weight:800;font-size:15px;margin-bottom:10px;color:var(--navy);">Ideal vs. Hybrid Comparison</div>
+      <table class="ctbl">
+        <tr><th>Aspect</th><th>Ideal</th><th>Hybrid</th></tr>
+        <tr><td><strong>Producer Adoption</strong></td><td>All can flip</td><td>Most flip; some stay east1</td></tr>
+        <tr><td><strong>Iceberg Paths</strong></td><td><span class="chk">&#10003; Eliminated</span> after flip</td><td><span class="wrn">&#9888;</span> PL for non-flipped</td></tr>
+        <tr><td><strong>Snowflake</strong></td><td><span class="chk">&#10003;</span> All data native</td><td><span class="chk">&#10003;</span> Native + PL</td></tr>
+        <tr><td><strong>Starburst / DBX</strong></td><td><span class="chk">&#10003;</span> Full access</td><td><span class="crs">&#10007;</span> No non-flip data</td></tr>
+        <tr><td><strong>Complexity</strong></td><td>Lower</td><td>Higher (two paths)</td></tr>
+        <tr><td><strong>east1 Dependency</strong></td><td><span class="chk">&#10003;</span> None during flip</td><td><span class="crs">&#10007;</span> Non-flip needs east1</td></tr>
+        <tr><td><strong>Path Forward</strong></td><td>Target state</td><td>Converges to Ideal</td></tr>
+      </table>
+    </div>
+    <div class="co ok a a5" style="margin-top:12px;"><strong>Goal:</strong> Hybrid is <strong>transitional</strong>. As each non-flipping producer migrates, they move from Private Listing to native. The end state is always the Ideal Architecture.</div>
+  </div>
+</div>
+</div>
+<div class="s-foot">Data Mesh Multi-Region Resiliency &mdash; April 2026</div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- Navigation Bar -->
+<div class="nav-bar">
+  <div class="nav-arrows">
+    <button class="nav-btn" onclick="prev()" id="btnPrev">&#9664; Previous</button>
+  </div>
+  <div class="nav-dots" id="navDots"></div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div class="nav-info" id="navInfo">1 / 9</div>
+    <button class="nav-btn" onclick="next()" id="btnNext">Next &#9654;</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var slides=document.querySelectorAll('.slide');
+  var total=slides.length;
+  var cur=0;
+  var transitioning=false;
+
+  // Build nav dots
+  var dotsEl=document.getElementById('navDots');
+  for(var i=0;i<total;i++){
+    var d=document.createElement('button');
+    d.className='nav-dot'+(i===0?' active':'');
+    d.setAttribute('data-i',i);
+    d.onclick=function(){goTo(+this.getAttribute('data-i'));};
+    dotsEl.appendChild(d);
+  }
+
+  function updateUI(){
+    var dots=document.querySelectorAll('.nav-dot');
+    dots.forEach(function(d,i){d.className='nav-dot'+(i===cur?' active':'');});
+    document.getElementById('navInfo').textContent=(cur+1)+' / '+total;
+    document.getElementById('progress').style.width=((cur/(total-1))*100)+'%';
+    document.getElementById('btnPrev').style.opacity=cur===0?'.3':'1';
+    document.getElementById('btnNext').style.opacity=cur===total-1?'.3':'1';
+  }
+
+  function goTo(n){
+    if(n===cur||n<0||n>=total||transitioning)return;
+    transitioning=true;
+    slides[cur].classList.remove('active');
+    slides[cur].classList.add('leaving');
+    cur=n;
+    slides[cur].classList.add('active');
+    setTimeout(function(){
+      slides.forEach(function(s,i){if(i!==cur){s.classList.remove('leaving','active');}});
+      // Reset animations for re-entry
+      var anims=slides[cur].querySelectorAll('.a');
+      anims.forEach(function(el){
+        el.style.animation='none';
+        el.offsetHeight; // trigger reflow
+        el.style.animation='';
+      });
+      transitioning=false;
+    },700);
+    updateUI();
+  }
+
+  window.next=function(){goTo(cur+1);};
+  window.prev=function(){goTo(cur-1);};
+
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '||e.key==='PageDown'){e.preventDefault();next();}
+    else if(e.key==='ArrowLeft'||e.key==='ArrowUp'||e.key==='PageUp'){e.preventDefault();prev();}
+    else if(e.key==='Home'){e.preventDefault();goTo(0);}
+    else if(e.key==='End'){e.preventDefault();goTo(total-1);}
+  });
+
+  // Touch support
+  var tx=0;
+  document.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  document.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)>60){dx<0?next():prev();}
+  },{passive:true});
+
+  updateUI();
+})();
+</script>
+</body>
+</html>
