@@ -422,7 +422,7 @@ body{
     <div class="nt">Consumer Notification Layer <span style="font-weight:400;color:var(--text3);font-size:9px;">(us-east-1)</span></div>
     <div class="ntfy-grid">
       <div class="ntfy-cell"><div class="l">Ch 1: SNS &rarr; SQS</div>Platform SNS &darr; Consumer SQS<br>(consumer accounts, east1)<br><em>Consumer polls SQS</em></div>
-      <div class="ntfy-cell"><div class="l">Ch 2: On-Prem Kafka</div>Lambda/ECS pushes to Kafka<br>via Direct Connect/VPN (east1)<br><em>On-prem apps consume</em></div>
+      <div class="ntfy-cell"><div class="l">Ch 2: On-Prem Kafka</div>Lambda/ECS pushes to Kafka<br>(east1)<br><em>On-prem apps consume</em></div>
       <div class="ntfy-cell"><div class="l">Ch 3: Polling API</div>REST API (ECS + DynamoDB)<br>Consumer polls for notifications<br><em>Most resilient channel</em></div>
     </div>
   </div>
@@ -595,92 +595,7 @@ body{
 </div>
 
 <div class="co ok">
-  <strong>During DR Flip:</strong> Producers reverse CRR (west2&rarr;east1), write to west2. Platform activates west2 infra. Consumers switch to west2 endpoints. Iceberg path problem eliminated (native west2 paths after flip). <strong>RPO &le; 15 min &bull; RTO 45-60 min.</strong>
-</div>
-</div>
-<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- SLIDE 3: TASKS FOR IDEAL STATE                         -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="slide" id="s3">
-<div class="s-hdr">
-  <div><h1>Tasks Required &mdash; Ideal State</h1><div class="sub">Work by Data Mesh Platform, Producers, and Consumers to achieve full dual-region readiness</div></div>
-  <div class="s-num">03 / 07</div>
-</div>
-<div class="s-body">
-<div class="tcols">
-  <div class="tsec">
-    <h3 class="ph">Data Mesh Platform Team</h3>
-    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
-      <tr><td>1</td><td>Create VPC, subnets, S3 VPC Endpoint in west2</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>2</td><td>Deploy ECS Registration APIs in west2 (warm standby)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>3</td><td>Deploy Producer Notification API (Lambda) in west2</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>4</td><td>Deploy Consumer Notification API (Lambda) in west2</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>5</td><td>Create SNS topic in west2 + cross-account subs</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>6</td><td>Configure DynamoDB Global Tables (add west2 replica)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>7</td><td>Deploy all Lambda functions in west2</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>8</td><td>Set up Glue Catalog in west2 + Lake Formation perms</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>8a</td><td>Modify Notification Lambda for Glue dual-write (code change)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>9</td><td>Implement SNS dual-publish (both east1 + west2 topics)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>10</td><td>Configure Route53 failover routing + health checks</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>11</td><td>Provision Snowflake account in west2</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>12</td><td>Build external table / Iceberg recreation automation</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>13</td><td>Deploy Starburst cluster in west2 (warm standby)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>14</td><td>Deploy Databricks workspace in west2</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>15</td><td>Deploy Immuta in west2 + Policy-as-Code CI/CD</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>16</td><td>Provision Direct Connect / VPN from west2 to on-prem</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>17</td><td>Build self-service producer onboarding toolkit</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>18</td><td>Build monitoring &amp; alerting for west2</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>19</td><td>Deploy Notification Polling API in west2</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>20</td><td>ECR cross-region replication</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>21</td><td>Build &amp; test DR flip runbook</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>22</td><td>Decommission plan for east1 standby after failback</td><td><span class="pm">MED</span></td></tr>
-    </tbody></table>
-  </div>
-
-  <div class="tsec">
-    <h3 class="prh">Producer Teams</h3>
-    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
-      <tr><td>1</td><td>Create mirror S3 bucket in us-west-2</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>2</td><td>Enable S3 versioning on BOTH buckets</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>3</td><td>Enable S3 CRR: east1&rarr;west2 with RTC (15-min SLA)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>4</td><td>Grant compute platform IAM roles access to west2 bucket</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>5</td><td>Create S3 Access Points on west2 bucket (Starburst)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>6</td><td>Enable Replication Metrics &amp; Monitoring</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>7</td><td>Prepare CRR reversal procedure (west2&rarr;east1)</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>8</td><td>Prepare to switch writes to west2 during DR</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>9</td><td>Validate east1 write &rarr; west2 replica accessible</td><td><span class="ph-p">HIGH</span></td></tr>
-    </tbody></table>
-    <div class="co info" style="margin-top:8px;">
-      <strong>Normal Ops:</strong> Producers write to east1 S3 (primary). CRR replicates to west2 (replica).<br>
-      <strong>During DR Flip:</strong> Producers reverse CRR (west2&rarr;east1) and switch writes to west2 S3.
-    </div>
-  </div>
-
-  <div class="tsec">
-    <h3 class="ch">Consumer Teams</h3>
-    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
-      <tr><td>1</td><td>Create SQS queue in us-west-2 (own account)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>2</td><td>Subscribe west2 SQS to west2 SNS topic</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>3</td><td>Use platform CNAME endpoints (not direct URLs)</td><td><span class="pc">CRIT</span></td></tr>
-      <tr><td>4</td><td>Prepare to switch polling to west2 SQS during DR</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>5</td><td>Implement idempotent message processing</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>6</td><td>On-prem Kafka: validate west2 DX path</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>7</td><td>Test end-to-end in west2 during DR drill</td><td><span class="ph-p">HIGH</span></td></tr>
-      <tr><td>8</td><td>Document connection failover procedure</td><td><span class="pm">MED</span></td></tr>
-    </tbody></table>
-    <div class="co info" style="margin-top:8px;">
-      <strong>Consumer Connection Strategy:</strong><br>
-      &bull; <strong>CNAME (Recommended):</strong> Platform DNS routes transparently<br>
-      &bull; <strong>Snowflake Client Redirect:</strong> Native (Business Critical ed.)<br>
-      &bull; <strong>Dual-Publish:</strong> Consumers can poll both SQS queues
-    </div>
-    <div class="co warn" style="margin-top:5px;">
-      <strong>DX Lead Time:</strong> Direct Connect / VPN from west2 to on-prem takes 4-8 weeks. Must start in Phase 1.
-    </div>
-  </div>
+  <strong>During DR Flip:</strong> Producers reverse CRR (west2&rarr;east1), write to west2. Platform activates west2 infra. Consumers switch to west2 endpoints. Iceberg path problem eliminated (native west2 paths after flip).
 </div>
 </div>
 <div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
@@ -689,10 +604,10 @@ body{
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- SLIDE 4: HYBRID ARCHITECTURE                           -->
 <!-- ═══════════════════════════════════════════════════════ -->
-<div class="slide" id="s4">
+<div class="slide" id="s3">
 <div class="s-hdr">
   <div><h1>Hybrid State &mdash; Proposed Architecture</h1><div class="sub">Most producers can flip; non-flipping producers use Snowflake Private Listing (SnowGrid)</div></div>
-  <div class="s-num">04 / 07</div>
+  <div class="s-num">03 / 07</div>
 </div>
 <div class="s-body">
 
@@ -824,76 +739,116 @@ body{
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- SLIDE 5: TASKS FOR HYBRID STATE                        -->
+<!-- SLIDE 7: HIGH-LEVEL TASK BREAKDOWN                     -->
 <!-- ═══════════════════════════════════════════════════════ -->
-<div class="slide" id="s5">
+<div class="slide" id="s4">
 <div class="s-hdr">
-  <div><h1>Tasks Required &mdash; Hybrid State</h1><div class="sub">Additional tasks beyond Ideal State to support non-flipping producers via Snowflake Private Listing</div></div>
-  <div class="s-num">05 / 07</div>
+  <div><h1>High-Level Task Breakdown</h1><div class="sub">Key workstreams for Platform, Producer, and Consumer teams to enable multi-region resiliency</div></div>
+  <div class="s-num">04 / 07</div>
 </div>
 <div class="s-body">
-<div class="co info" style="margin-bottom:10px;">
-  <strong>Prerequisite:</strong> All Ideal State tasks (Slide 3) must be completed first. The tasks below are <strong>additional</strong> work specific to Hybrid.
-</div>
-<div class="tcols2">
-  <div>
-    <div class="tsec">
-      <h3 class="ph">Platform Team (Additional)</h3>
-      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
-        <tr><td>H1</td><td>Maintain Snowflake east1 account as Private Listing provider</td><td><span class="pc">CRIT</span></td></tr>
-        <tr><td>H2</td><td>Set up Snowflake Private Listing / SnowGrid per non-flipped producer</td><td><span class="pc">CRIT</span></td></tr>
-        <tr><td>H3</td><td>Configure east1 SF as provider (share non-flipped tables)</td><td><span class="pc">CRIT</span></td></tr>
-        <tr><td>H4</td><td>Configure west2 SF as consumer (subscribe to listings)</td><td><span class="pc">CRIT</span></td></tr>
-        <tr><td>H5</td><td>Validate Immuta governance on Private Listing shared tables</td><td><span class="ph-p">HIGH</span></td></tr>
-        <tr><td>H6</td><td>Ensure non-flipped producers use CNAME for Notif API</td><td><span class="ph-p">HIGH</span></td></tr>
-        <tr><td>H7</td><td>Build monitoring for Private Listing replication lag</td><td><span class="ph-p">HIGH</span></td></tr>
-        <tr><td>H8</td><td>Maintain producer registry (flipped vs non-flipped)</td><td><span class="ph-p">HIGH</span></td></tr>
-        <tr><td>H9</td><td>Document SB/DBX limitation for non-flipped data</td><td><span class="ph-p">HIGH</span></td></tr>
-        <tr><td>H10</td><td>Build automation: hybrid &rarr; ideal transition per producer</td><td><span class="pm">MED</span></td></tr>
-        <tr><td>H11</td><td>Maintain east1 SF Storage Integrations</td><td><span class="pm">MED</span></td></tr>
-        <tr><td>H12</td><td>Cost tracking for Private Listing replication</td><td><span class="pm">MED</span></td></tr>
-      </tbody></table>
+<div style="display:grid;grid-template-columns:1.2fr 0.9fr 0.9fr;gap:18px;">
+
+  <!-- PLATFORM TASKS -->
+  <div style="border:1px solid rgba(96,165,250,.3);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(96,165,250,.08),rgba(96,165,250,.02));">
+    <div style="background:linear-gradient(135deg,rgba(30,64,175,.6),rgba(59,130,246,.4));padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(96,165,250,.2);">
+      <div style="background:rgba(255,255,255,.12);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;">&#9881;</div>
+      <div><div style="font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;color:#fff;">Platform Tasks</div><div style="font-size:11px;color:var(--text2);">Data Mesh Platform Team</div></div>
     </div>
-    <div class="tsec">
-      <h3 class="prh">Non-Flipping Producer Teams</h3>
-      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
-        <tr><td>1</td><td>Continue writing to east1 S3 (no change)</td><td><span class="pc">CRIT</span></td></tr>
-        <tr><td>2</td><td>Keep east1 SF IAM role in S3 bucket policy (removing breaks PL)</td><td><span class="pc">CRIT</span></td></tr>
-        <tr><td>3</td><td>Use CNAME for Producer Notification API (not direct east1 URL)</td><td><span class="ph-p">HIGH</span></td></tr>
-        <tr><td>4</td><td>Coordinate with Platform on Private Listing setup</td><td><span class="ph-p">HIGH</span></td></tr>
-        <tr><td>5</td><td>Commit to timeline for eventual flip to west2</td><td><span class="pm">MED</span></td></tr>
-      </tbody></table>
+    <div style="padding:12px 14px;">
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.12);border-radius:8px;border-left:3px solid var(--blue);">
+          <div style="min-width:22px;height:22px;background:var(--blue);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup Starburst on US-WEST-2</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Provision and configure Starburst cluster in the secondary region</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.12);border-radius:8px;border-left:3px solid var(--blue);">
+          <div style="min-width:22px;height:22px;background:var(--blue);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup Registration API &amp; Infra on US-WEST-2</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Deploy Registration API services, ECS tasks, and supporting infrastructure</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.12);border-radius:8px;border-left:3px solid var(--blue);">
+          <div style="min-width:22px;height:22px;background:var(--blue);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup Replication of DynamoDB &amp; Other Data</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Enable DynamoDB Global Tables and replicate metadata to US-WEST-2</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.12);border-radius:8px;border-left:3px solid var(--blue);">
+          <div style="min-width:22px;height:22px;background:var(--blue);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup Producer Notification API on US-WEST-2</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Deploy producer-facing notification services in the secondary region</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.12);border-radius:8px;border-left:3px solid var(--blue);">
+          <div style="min-width:22px;height:22px;background:var(--blue);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">5</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup Consumer Notification (API &amp; SNS)</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Deploy consumer notification API and configure SNS topics in US-WEST-2</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.12);border-radius:8px;border-left:3px solid var(--blue);">
+          <div style="min-width:22px;height:22px;background:var(--blue);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">6</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Registration Changes</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">US-WEST-2 producer registration and Snowflake Private Listing support</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.12);border-radius:8px;border-left:3px solid var(--blue);">
+          <div style="min-width:22px;height:22px;background:var(--blue);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">7</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Dex Integration / Changes</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Update Dex for multi-region setup and cross-region coordination</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.12);border-radius:8px;border-left:3px solid var(--blue);">
+          <div style="min-width:22px;height:22px;background:var(--blue);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">8</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Updates to Route53</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Add US-WEST-2 endpoints and configure DNS failover routing policies</div></div>
+        </div>
+      </div>
     </div>
   </div>
-  <div>
-    <div class="tsec">
-      <h3 class="ch">Consumer Teams (Additional)</h3>
-      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
-        <tr><td colspan="3" style="background:var(--surface2);text-align:center;font-weight:600;color:var(--text2);">Same as Ideal State (Slide 3) &mdash; consumers operate in west2 during DR</td></tr>
-        <tr><td>+1</td><td>Understand: non-flipped data only available via Snowflake in west2</td><td><span class="ph-p">HIGH</span></td></tr>
-        <tr><td>+2</td><td>Accept Private Listing replication lag for non-flipped data</td><td><span class="pm">MED</span></td></tr>
-      </tbody></table>
-    </div>
 
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px;">
-      <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;margin-bottom:8px;color:#fff;">Ideal vs. Hybrid Comparison</div>
-      <table class="ctbl">
-        <tr><th>Aspect</th><th>Ideal</th><th>Hybrid</th></tr>
-        <tr><td><strong style="color:#fff">Producer Adoption</strong></td><td>All can flip</td><td>Most flip; some stay east1</td></tr>
-        <tr><td><strong style="color:#fff">Iceberg Paths</strong></td><td><span class="chk">&#10003; Eliminated</span> after flip</td><td><span class="wrn">&#9888;</span> PL for non-flipped</td></tr>
-        <tr><td><strong style="color:#fff">Snowflake</strong></td><td><span class="chk">&#10003;</span> All data native</td><td><span class="chk">&#10003;</span> Native + PL</td></tr>
-        <tr><td><strong style="color:#fff">Starburst / DBX</strong></td><td><span class="chk">&#10003;</span> Full access</td><td><span class="crs">&#10007;</span> No non-flip data</td></tr>
-        <tr><td><strong style="color:#fff">Complexity</strong></td><td>Lower</td><td>Higher (two paths)</td></tr>
-        <tr><td><strong style="color:#fff">Cost</strong></td><td>Lower</td><td>Higher (PL fees)</td></tr>
-        <tr><td><strong style="color:#fff">east1 Dependency</strong></td><td><span class="chk">&#10003;</span> None during flip</td><td><span class="crs">&#10007;</span> Non-flip needs east1</td></tr>
-        <tr><td><strong style="color:#fff">Path Forward</strong></td><td>Target state</td><td>Converges to Ideal</td></tr>
-      </table>
+  <!-- PRODUCER TASKS -->
+  <div style="border:1px solid rgba(52,211,153,.3);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(52,211,153,.08),rgba(52,211,153,.02));">
+    <div style="background:linear-gradient(135deg,rgba(6,95,70,.6),rgba(16,185,129,.4));padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(52,211,153,.2);">
+      <div style="background:rgba(255,255,255,.12);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;">&#9650;</div>
+      <div><div style="font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;color:#fff;">Producer Tasks</div><div style="font-size:11px;color:var(--text2);">Data Producer Teams</div></div>
     </div>
-
-    <div class="co ok" style="margin-top:10px;">
-      <strong>Goal:</strong> Hybrid is <strong>transitional</strong>. As each non-flipping producer migrates, they move from Private Listing to native. The end state is always the Ideal Architecture.
+    <div style="padding:12px 14px;">
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.12);border-radius:8px;border-left:3px solid var(--west);">
+          <div style="min-width:22px;height:22px;background:var(--west);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup US-WEST-2 Region</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Provision AWS accounts, VPCs, IAM roles, and access policies for the secondary region</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.12);border-radius:8px;border-left:3px solid var(--west);">
+          <div style="min-width:22px;height:22px;background:var(--west);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Replicate S3 Data to US-WEST-2</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Enable S3 Cross-Region Replication for all producer datasets to the secondary region</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.12);border-radius:8px;border-left:3px solid var(--west);">
+          <div style="min-width:22px;height:22px;background:var(--west);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">ETL Pipeline &amp; Glue Catalog Setup</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Configure ETL pipelines and Glue Data Catalog entries for US-WEST-2 datasets</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.12);border-radius:8px;border-left:3px solid var(--west);">
+          <div style="min-width:22px;height:22px;background:var(--west);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">CADS Request</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Submit Cloud Architecture &amp; Design Services request for multi-region infrastructure review</div></div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- CONSUMER TASKS -->
+  <div style="border:1px solid rgba(167,139,250,.3);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(167,139,250,.08),rgba(167,139,250,.02));">
+    <div style="background:linear-gradient(135deg,rgba(55,48,163,.6),rgba(99,102,241,.4));padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(167,139,250,.2);">
+      <div style="background:rgba(255,255,255,.12);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;">&#9660;</div>
+      <div><div style="font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;color:#fff;">Consumer Tasks</div><div style="font-size:11px;color:var(--text2);">Data Consumer Teams</div></div>
+    </div>
+    <div style="padding:12px 14px;">
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.12);border-radius:8px;border-left:3px solid var(--purple);">
+          <div style="min-width:22px;height:22px;background:var(--purple);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">1</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup US-WEST-2</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Provision consumer AWS resources, VPCs, and IAM policies in the secondary region</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.12);border-radius:8px;border-left:3px solid var(--purple);">
+          <div style="min-width:22px;height:22px;background:var(--purple);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">2</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup Consumer Pipeline in US-WEST-2</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Deploy and configure data consumption pipelines in the secondary region</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.12);border-radius:8px;border-left:3px solid var(--purple);">
+          <div style="min-width:22px;height:22px;background:var(--purple);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">3</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Setup SNS-SQS Connectivity on US-WEST-2</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Configure SNS subscriptions and SQS queues in the secondary region for notifications</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.12);border-radius:8px;border-left:3px solid var(--purple);">
+          <div style="min-width:22px;height:22px;background:var(--purple);color:#0a0e1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">4</div>
+          <div><div style="font-size:12px;font-weight:700;color:#fff;">Update Connections to Global URLs</div><div style="font-size:10px;color:var(--text2);margin-top:2px;">Switch compute endpoints from region-specific to global URLs for seamless failover</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 </div>
 <div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
@@ -902,10 +857,10 @@ body{
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- SLIDE 6: DR FLIP SEQUENCE                              -->
 <!-- ═══════════════════════════════════════════════════════ -->
-<div class="slide" id="s6">
+<div class="slide" id="s5">
 <div class="s-hdr">
   <div><h1>DR Flip Sequence</h1><div class="sub">Step-by-step failover from us-east-1 to us-west-2 during a sustained regional outage</div></div>
-  <div class="s-num">06 / 07</div>
+  <div class="s-num">05 / 07</div>
 </div>
 <div class="s-body">
 <div class="g2">
@@ -943,38 +898,7 @@ body{
   </div>
 
   <div>
-    <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:15px;color:#fff;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid var(--border);">RPO / RTO Summary</div>
-
-    <table class="ctbl">
-      <tr><th>Component</th><th>RPO</th><th>RTO</th></tr>
-      <tr><td>S3 Data (Parquet)</td><td>15 min</td><td>0 min</td></tr>
-      <tr><td>S3 Data (Iceberg)</td><td>15 min</td><td>10-15 min</td></tr>
-      <tr><td>DynamoDB Metadata</td><td>~2 sec</td><td>0 min</td></tr>
-      <tr><td>Glue Catalog</td><td>~0 (dual-write)</td><td>0 min</td></tr>
-      <tr><td>Platform APIs</td><td>~2 sec</td><td>5-10 min</td></tr>
-      <tr><td><strong style="color:#fff">Snowflake (ext/Ice)</strong></td><td>N/A</td><td><strong style="color:var(--east)">10-20 min</strong></td></tr>
-      <tr><td>Starburst</td><td>~0</td><td>5-10 min</td></tr>
-      <tr><td>Databricks</td><td>N/A</td><td>10-15 min</td></tr>
-      <tr><td>Immuta</td><td>Last CI/CD</td><td>5-10 min</td></tr>
-      <tr><td>SNS&rarr;SQS (dual-pub)</td><td>~0</td><td>0 min</td></tr>
-      <tr><td>On-Prem Kafka</td><td>~2 sec</td><td>5-10 min</td></tr>
-      <tr><td>Polling API</td><td>~2 sec</td><td>5-10 min</td></tr>
-    </table>
-
-    <!-- Metric cards -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
-      <div class="metric-card">
-        <div class="mv" style="color:var(--west);">&le; 15 min</div>
-        <div class="ml">RPO (data loss tolerance)</div>
-      </div>
-      <div class="metric-card">
-        <div class="mv" style="color:var(--amber);">45-60 min</div>
-        <div class="ml">RTO (time to restore)</div>
-      </div>
-    </div>
-    <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text3);margin-top:6px;">Bottleneck: Snowflake external table recreation (10-20 min)</div>
-
-    <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;color:#fff;margin-top:14px;padding-bottom:5px;border-bottom:1px solid var(--border);">Failover Trigger</div>
+    <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;color:#fff;padding-bottom:5px;border-bottom:1px solid var(--border);">Failover Trigger</div>
     <div style="font-size:10px;color:var(--text2);margin-top:6px;line-height:1.6;">
       <strong style="color:#fff">Trigger:</strong> Confirmed sustained us-east-1 outage (&gt;15 minutes)<br>
       <strong style="color:#fff">Authority:</strong> Platform Team Lead + VP Engineering<br>
@@ -988,85 +912,154 @@ body{
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- SLIDE 7: KEY DECISIONS & BLOCKERS                      -->
+<!-- SLIDE 3: TASKS FOR IDEAL STATE                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+<div class="s-hdr">
+  <div><h1>Tasks Required &mdash; Ideal State</h1><div class="sub">Work by Data Mesh Platform, Producers, and Consumers to achieve full dual-region readiness</div></div>
+  <div class="s-num">06 / 07</div>
+</div>
+<div class="s-body">
+<div class="tcols">
+  <div class="tsec">
+    <h3 class="ph">Data Mesh Platform Team</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td>Create VPC, subnets, S3 VPC Endpoint in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td>Deploy ECS Registration APIs in west2 (warm standby)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td>Deploy Producer Notification API (Lambda) in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td>Deploy Consumer Notification API (Lambda) in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>5</td><td>Create SNS topic in west2 + cross-account subs</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>6</td><td>Configure DynamoDB Global Tables (add west2 replica)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>7</td><td>Deploy all Lambda functions in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>8</td><td>Set up Glue Catalog in west2 + Lake Formation perms</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>8a</td><td>Modify Notification Lambda for Glue dual-write (code change)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>9</td><td>Implement SNS dual-publish (both east1 + west2 topics)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>10</td><td>Configure Route53 failover routing + health checks</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>11</td><td>Provision Snowflake account in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>12</td><td>Build external table / Iceberg recreation automation</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>13</td><td>Deploy Starburst cluster in west2 (warm standby)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>14</td><td>Deploy Databricks workspace in west2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>15</td><td>Deploy Immuta in west2 + Policy-as-Code CI/CD</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>16</td><td>Build self-service producer onboarding toolkit</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>18</td><td>Build monitoring &amp; alerting for west2</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>19</td><td>Deploy Notification Polling API in west2</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>20</td><td>ECR cross-region replication</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>21</td><td>Build &amp; test DR flip runbook</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>22</td><td>Decommission plan for east1 standby after failback</td><td><span class="pm">MED</span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="tsec">
+    <h3 class="prh">Producer Teams</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td>Create mirror S3 bucket in us-west-2</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td>Enable S3 versioning on BOTH buckets</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td>Enable S3 CRR: east1&rarr;west2 with RTC (15-min SLA)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td>Grant compute platform IAM roles access to west2 bucket</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>5</td><td>Create S3 Access Points on west2 bucket (Starburst)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>6</td><td>Enable Replication Metrics &amp; Monitoring</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>7</td><td>Prepare CRR reversal procedure (west2&rarr;east1)</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>8</td><td>Prepare to switch writes to west2 during DR</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>9</td><td>Validate east1 write &rarr; west2 replica accessible</td><td><span class="ph-p">HIGH</span></td></tr>
+    </tbody></table>
+    <div class="co info" style="margin-top:8px;">
+      <strong>Normal Ops:</strong> Producers write to east1 S3 (primary). CRR replicates to west2 (replica).<br>
+      <strong>During DR Flip:</strong> Producers reverse CRR (west2&rarr;east1) and switch writes to west2 S3.
+    </div>
+  </div>
+
+  <div class="tsec">
+    <h3 class="ch">Consumer Teams</h3>
+    <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+      <tr><td>1</td><td>Create SQS queue in us-west-2 (own account)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>2</td><td>Subscribe west2 SQS to west2 SNS topic</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>3</td><td>Use platform CNAME endpoints (not direct URLs)</td><td><span class="pc">CRIT</span></td></tr>
+      <tr><td>4</td><td>Prepare to switch polling to west2 SQS during DR</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>5</td><td>Implement idempotent message processing</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>6</td><td>On-prem Kafka: validate west2 DX path</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>7</td><td>Test end-to-end in west2 during DR drill</td><td><span class="ph-p">HIGH</span></td></tr>
+      <tr><td>8</td><td>Document connection failover procedure</td><td><span class="pm">MED</span></td></tr>
+    </tbody></table>
+    <div class="co info" style="margin-top:8px;">
+      <strong>Consumer Connection Strategy:</strong><br>
+      &bull; <strong>CNAME (Recommended):</strong> Platform DNS routes transparently<br>
+      &bull; <strong>Snowflake Client Redirect:</strong> Native (Business Critical ed.)<br>
+      &bull; <strong>Dual-Publish:</strong> Consumers can poll both SQS queues
+    </div>
+  </div>
+</div>
+</div>
+<div class="s-ftr">DATA MESH MULTI-REGION RESILIENCY &mdash; APRIL 2026</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 5: TASKS FOR HYBRID STATE                        -->
 <!-- ═══════════════════════════════════════════════════════ -->
 <div class="slide" id="s7">
 <div class="s-hdr">
-  <div><h1>Key Decisions &amp; Blockers</h1><div class="sub">Architecture decisions requiring approval and critical blockers to resolve</div></div>
+  <div><h1>Tasks Required &mdash; Hybrid State</h1><div class="sub">Additional tasks beyond Ideal State to support non-flipping producers via Snowflake Private Listing</div></div>
   <div class="s-num">07 / 07</div>
 </div>
 <div class="s-body">
-<div class="g2">
-  <div>
-    <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:15px;color:#fff;margin-bottom:8px;">Pending Decisions</div>
-    <table class="ctbl">
-      <tr><th>#</th><th>Decision</th><th>Recommendation</th></tr>
-      <tr><td class="mono">D1</td><td>Failover strategy</td><td><strong style="color:#fff">Active-Passive (Warm Standby)</strong></td></tr>
-      <tr><td class="mono">D2</td><td>Producer multi-region mandate</td><td><strong style="color:#fff">Tiered:</strong> Tier 1 mandatory, Tier 2 recommended</td></tr>
-      <tr><td class="mono">D3</td><td>Snowflake edition</td><td><strong style="color:#fff">Business Critical</strong> (failover groups + Client Redirect)</td></tr>
-      <tr><td class="mono">D4</td><td>Glue Catalog sync</td><td><strong style="color:#fff">Dual-write</strong> from Notification API</td></tr>
-      <tr><td class="mono">D5</td><td>SNS notification DR</td><td><strong style="color:#fff">Dual-publish</strong> (zero consumer action on flip)</td></tr>
-      <tr><td class="mono">D6</td><td>Kafka connectivity</td><td><strong style="color:#fff">Provision DX from west2</strong> (4-8 week lead)</td></tr>
-      <tr><td class="mono">D7</td><td>Failover trigger</td><td><strong style="color:#fff">Manual</strong> with automated alerting</td></tr>
-      <tr><td class="mono">D8</td><td>Consumer connections</td><td><strong style="color:#fff">CNAME</strong> for SB/DBX; <strong style="color:#fff">Client Redirect</strong> for SF</td></tr>
-      <tr><td class="mono">D9</td><td>SF Private Listing + Iceberg</td><td><strong style="color:#fff">Validate with SF support</strong> (see B2)</td></tr>
-      <tr><td class="mono">D10</td><td>Immuta on PL shared tables</td><td><strong style="color:#fff">Validate governance</strong> (see B4)</td></tr>
-      <tr><td class="mono">D11</td><td>DR drill cadence</td><td><strong style="color:#fff">Mandatory quarterly</strong> for Tier 1 + platform</td></tr>
-    </table>
-  </div>
-
-  <div>
-    <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:15px;color:var(--east);margin-bottom:8px;">Critical Blockers</div>
-
-    <div class="blocker-row crit">
-      <div class="blocker-id">B1</div>
-      <div class="blocker-text"><strong>Direct Connect from west2 to on-prem</strong> &mdash; 4-8 week lead time. Must start immediately.</div>
-      <div class="blocker-owner">Platform + Network</div>
-    </div>
-    <div class="blocker-row crit">
-      <div class="blocker-id">B2</div>
-      <div class="blocker-text"><strong>Snowflake Private Listing + Unmanaged Iceberg</strong> &mdash; BCR-1528 silently skips these. Must validate with SF support.</div>
-      <div class="blocker-owner">Platform + Snowflake</div>
-    </div>
-    <div class="blocker-row high">
-      <div class="blocker-id">B3</div>
-      <div class="blocker-text"><strong>Snowflake Business Critical edition</strong> &mdash; may require contract upgrade for failover groups.</div>
-      <div class="blocker-owner">Platform + Procurement</div>
-    </div>
-    <div class="blocker-row high">
-      <div class="blocker-id">B4</div>
-      <div class="blocker-text"><strong>Immuta on Private Listing shared tables</strong> &mdash; untested. Must validate governance coverage.</div>
-      <div class="blocker-owner">Governance Team</div>
-    </div>
-    <div class="blocker-row high">
-      <div class="blocker-id">B5</div>
-      <div class="blocker-text"><strong>Iceberg metadata absolute paths</strong> &mdash; existing tables need register_table + path substitution automation.</div>
-      <div class="blocker-owner">Platform Team</div>
-    </div>
-
-    <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;color:#fff;margin-top:14px;margin-bottom:8px;">Estimated Warm Standby Cost</div>
-    <table class="ctbl">
-      <tr><th>Component</th><th>Monthly Cost</th></tr>
-      <tr><td>S3 CRR Storage + Transfer</td><td class="mono" style="font-size:9px;">$0.02/GB transfer + storage duplication</td></tr>
-      <tr><td>DynamoDB Global Tables</td><td class="mono" style="font-size:9px;">~2&times; write costs</td></tr>
-      <tr><td>ECS Warm Standby</td><td class="mono" style="font-size:9px;">~20% of primary</td></tr>
-      <tr><td>Starburst Warm Standby</td><td class="mono" style="font-size:9px;">~15-20% of primary</td></tr>
-      <tr><td>Snowflake / Databricks</td><td class="mono" style="font-size:9px;">Minimal (warehouses suspended)</td></tr>
-      <tr><td>Immuta</td><td class="mono" style="font-size:9px;">TBD with vendor (may need add'l license)</td></tr>
-      <tr style="background:rgba(52,211,153,.06)"><td><strong style="color:#fff">Estimated Total</strong></td><td class="mono" style="font-size:10px;color:var(--west);font-weight:700;">~25-35% of primary region cost</td></tr>
-    </table>
-  </div>
+<div class="co info" style="margin-bottom:10px;">
+  <strong>Prerequisite:</strong> All Ideal State tasks (Slide 3) must be completed first. The tasks below are <strong>additional</strong> work specific to Hybrid.
 </div>
+<div class="tcols2">
+  <div>
+    <div class="tsec">
+      <h3 class="ph">Platform Team (Additional)</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td>H1</td><td>Maintain Snowflake east1 account as Private Listing provider</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H2</td><td>Set up Snowflake Private Listing / SnowGrid per non-flipped producer</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H3</td><td>Configure east1 SF as provider (share non-flipped tables)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H4</td><td>Configure west2 SF as consumer (subscribe to listings)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>H5</td><td>Validate Immuta governance on Private Listing shared tables</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H6</td><td>Ensure non-flipped producers use CNAME for Notif API</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H7</td><td>Build monitoring for Private Listing replication lag</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H8</td><td>Maintain producer registry (flipped vs non-flipped)</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H9</td><td>Document SB/DBX limitation for non-flipped data</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>H10</td><td>Build automation: hybrid &rarr; ideal transition per producer</td><td><span class="pm">MED</span></td></tr>
+        <tr><td>H11</td><td>Maintain east1 SF Storage Integrations</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
+    <div class="tsec">
+      <h3 class="prh">Non-Flipping Producer Teams</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td>1</td><td>Continue writing to east1 S3 (no change)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>2</td><td>Keep east1 SF IAM role in S3 bucket policy (removing breaks PL)</td><td><span class="pc">CRIT</span></td></tr>
+        <tr><td>3</td><td>Use CNAME for Producer Notification API (not direct east1 URL)</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>4</td><td>Coordinate with Platform on Private Listing setup</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>5</td><td>Commit to timeline for eventual flip to west2</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div>
+    <div class="tsec">
+      <h3 class="ch">Consumer Teams (Additional)</h3>
+      <table class="ttbl"><thead><tr><th>#</th><th>Task</th><th>Pri</th></tr></thead><tbody>
+        <tr><td colspan="3" style="background:var(--surface2);text-align:center;font-weight:600;color:var(--text2);">Same as Ideal State (Slide 3) &mdash; consumers operate in west2 during DR</td></tr>
+        <tr><td>+1</td><td>Understand: non-flipped data only available via Snowflake in west2</td><td><span class="ph-p">HIGH</span></td></tr>
+        <tr><td>+2</td><td>Accept Private Listing replication lag for non-flipped data</td><td><span class="pm">MED</span></td></tr>
+      </tbody></table>
+    </div>
 
-<!-- Implementation Timeline -->
-<div style="margin-top:14px;">
-  <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;color:#fff;margin-bottom:8px;">Implementation Timeline</div>
-  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
-    <div class="phase-box" style="background:linear-gradient(160deg,rgba(15,20,36,.9),var(--surface));"><div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--blue);border-radius:10px 10px 0 0;"></div><div class="ph-label">Phase 1</div><div class="ph-title">Foundation</div><div class="ph-weeks">Weeks 1-4</div><div class="ph-detail">VPC, DDB, DX order,<br>SF/SB/DBX provision</div></div>
-    <div class="phase-box" style="background:linear-gradient(160deg,rgba(26,74,122,.3),var(--surface));"><div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--blue);border-radius:10px 10px 0 0;"></div><div class="ph-label">Phase 2</div><div class="ph-title">Platform Deploy</div><div class="ph-weeks">Weeks 5-8</div><div class="ph-detail">APIs, SNS, Glue,<br>dual-write, dual-pub</div></div>
-    <div class="phase-box" style="background:linear-gradient(160deg,rgba(37,99,235,.2),var(--surface));"><div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--amber);border-radius:10px 10px 0 0;"></div><div class="ph-label">Phase 3</div><div class="ph-title">Producer Onboard</div><div class="ph-weeks">Weeks 9-16</div><div class="ph-detail">Tier 1 first, CRR,<br>IAM, Access Points</div></div>
-    <div class="phase-box" style="background:linear-gradient(160deg,rgba(59,130,246,.15),var(--surface));"><div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--west);border-radius:10px 10px 0 0;"></div><div class="ph-label">Phase 4</div><div class="ph-title">Consumer Ready</div><div class="ph-weeks">Weeks 13-18</div><div class="ph-detail">SQS, CNAME, test<br>end-to-end in west2</div></div>
-    <div class="phase-box" style="background:linear-gradient(160deg,rgba(96,165,250,.1),var(--surface));"><div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--purple);border-radius:10px 10px 0 0;"></div><div class="ph-label">Phase 5</div><div class="ph-title">DR Drills</div><div class="ph-weeks">Weeks 17-20</div><div class="ph-detail">Runbook test, DR drill,<br>validation, hardening</div></div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px;">
+      <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;margin-bottom:8px;color:#fff;">Ideal vs. Hybrid Comparison</div>
+      <table class="ctbl">
+        <tr><th>Aspect</th><th>Ideal</th><th>Hybrid</th></tr>
+        <tr><td><strong style="color:#fff">Producer Adoption</strong></td><td>All can flip</td><td>Most flip; some stay east1</td></tr>
+        <tr><td><strong style="color:#fff">Iceberg Paths</strong></td><td><span class="chk">&#10003; Eliminated</span> after flip</td><td><span class="wrn">&#9888;</span> PL for non-flipped</td></tr>
+        <tr><td><strong style="color:#fff">Snowflake</strong></td><td><span class="chk">&#10003;</span> All data native</td><td><span class="chk">&#10003;</span> Native + PL</td></tr>
+        <tr><td><strong style="color:#fff">Starburst / DBX</strong></td><td><span class="chk">&#10003;</span> Full access</td><td><span class="crs">&#10007;</span> No non-flip data</td></tr>
+        <tr><td><strong style="color:#fff">Complexity</strong></td><td>Lower</td><td>Higher (two paths)</td></tr>
+        <tr><td><strong style="color:#fff">east1 Dependency</strong></td><td><span class="chk">&#10003;</span> None during flip</td><td><span class="crs">&#10007;</span> Non-flip needs east1</td></tr>
+        <tr><td><strong style="color:#fff">Path Forward</strong></td><td>Target state</td><td>Converges to Ideal</td></tr>
+      </table>
+    </div>
+
+    <div class="co ok" style="margin-top:10px;">
+      <strong>Goal:</strong> Hybrid is <strong>transitional</strong>. As each non-flipping producer migrates, they move from Private Listing to native. The end state is always the Ideal Architecture.
+    </div>
   </div>
 </div>
 </div>
